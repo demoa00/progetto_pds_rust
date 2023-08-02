@@ -7,3 +7,5 @@ Per la gloria, per gli smeraldi
 cargo add screenshots
 cargo add image
 cargo add druid
+
+sono su nuovo ramo
