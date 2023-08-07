@@ -1,5 +1,5 @@
 [package]
-name = "progetto_apa_rust"
+name = "project"
 version = "0.1.0"
 edition = "2021"
 
