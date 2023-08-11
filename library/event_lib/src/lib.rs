@@ -1,4 +1,5 @@
 use chrono::offset::Local;
+use directories::UserDirs;
 use druid::{
     im::Vector,
     image::{ImageBuffer, Rgba},
@@ -7,6 +8,11 @@ use druid::{
 };
 use screenshots::Screen;
 use shortcut_lib::*;
+use std::{
+    fs::OpenOptions,
+    io::{Read, Write},
+    str::FromStr,
+};
 
 /// Constant value of heigth of screen
 const H: usize = 1080;
@@ -50,14 +56,49 @@ pub struct AppState {
     name: String,
     buf: ImageBuf,
     shortcut: Shortcuts,
+    #[data(ignore)]
+    save_path: String,
 }
 
 impl AppState {
+    fn retrive_save_path() -> String {
+        let dirs = match UserDirs::new() {
+            Some(d) => d,
+            None => panic!("Error finding user path!"),
+        };
+
+        let new_path = String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
+
+        let mut file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open("./path")
+        {
+            Ok(f) => f,
+            Err(e) => panic!("{}", e),
+        };
+
+        let mut buf: Vec<u8> = Vec::new();
+
+        if file.read_to_end(&mut buf).unwrap() == 0 {
+            file.write_all(&bincode::serialize(&new_path).unwrap())
+                .expect("File writing failed!");
+
+            return String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
+        } else {
+            let path: String = bincode::deserialize::<String>(&buf).unwrap().to_string();
+
+            return path;
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             name: format!("Screenshot App"),
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
+            save_path: AppState::retrive_save_path(),
         }
     }
 
@@ -71,6 +112,25 @@ impl AppState {
 
     pub fn get_buf(&self) -> ImageBuf {
         self.clone().buf
+    }
+
+    pub fn get(&self) -> String {
+        self.save_path.clone()
+    }
+
+    pub fn set_save_path(&mut self, new_path: String) {
+        let mut file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open("./path")
+        {
+            Ok(f) => f,
+            Err(e) => panic!("{}", e),
+        };
+
+        file.write_all(&bincode::serialize(&new_path).unwrap())
+            .expect("File writing failed!");
     }
 }
 
