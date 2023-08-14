@@ -58,6 +58,7 @@ pub struct AppState {
     shortcut: Shortcuts,
     #[data(ignore)]
     save_path: String,
+    main_ui: bool,
 }
 
 impl AppState {
@@ -99,6 +100,7 @@ impl AppState {
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
             save_path: AppState::retrive_save_path(),
+            main_ui: true,
         }
     }
 
@@ -131,6 +133,14 @@ impl AppState {
 
         file.write_all(&bincode::serialize(&new_path).unwrap())
             .expect("File writing failed!");
+    }
+
+    pub fn get_main_ui(&self) -> bool {
+        self.main_ui
+    }
+
+    pub fn set_main_ui(&mut self, value: bool) {
+        self.main_ui = value;
     }
 }
 
