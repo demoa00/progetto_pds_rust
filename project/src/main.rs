@@ -7,7 +7,7 @@ const WINDOW_TITLE: LocalizedString<AppState> = LocalizedString::new("Screenshot
 fn main() {
     let main_window = WindowDesc::new(build_root_widget())
         .title(WINDOW_TITLE)
-        .window_size((400.0, 400.0));
+        .window_size((600.0, 450.0));
 
     let initial_state = AppState::new();
 

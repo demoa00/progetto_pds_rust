@@ -1,11 +1,12 @@
 pub mod transparent_button {
     use druid::debug_state::DebugState;
     use druid::widget::prelude::*;
-    use druid::widget::{Click, ControllerHost, Label, LabelText};
-    use druid::Color;
+    use druid::widget::{Click, ControllerHost, Flex, Image, Label, LabelText, ZStack};
     use druid::{theme, Affine, Data, Insets, LinearGradient, UnitPoint};
+    use druid::{Color, WidgetExt};
 
     const LABEL_INSETS: Insets = Insets::uniform_xy(8., 2.);
+    const BUTTON_DIM: (f64, f64) = (40.0, 40.0);
 
     pub struct TransparentButton<T> {
         label: Label<T>,
@@ -29,6 +30,23 @@ pub mod transparent_button {
             f: impl Fn(&mut EventCtx, &mut T, &Env) + 'static,
         ) -> ControllerHost<Self, Click<T>> {
             ControllerHost::new(self, Click::new(f))
+        }
+
+        pub fn with_bg(
+            bg: Image,
+            f: impl Fn(&mut EventCtx, &mut T, &Env) + 'static,
+        ) -> impl Widget<T> {
+            let img_with_padding = Flex::column()
+                .with_flex_child(bg.fix_size(BUTTON_DIM.0 - 20.0, BUTTON_DIM.1 - 20.0), 1.0)
+                .padding((0.0, 15.0));
+
+            ZStack::new(img_with_padding)
+                .with_centered_child(
+                    TransparentButton::new("")
+                        .on_click(f)
+                        .fix_size(BUTTON_DIM.0, BUTTON_DIM.1),
+                )
+                .fix_size(BUTTON_DIM.0 + 10.0, BUTTON_DIM.1 + 10.0)
         }
     }
 
@@ -120,8 +138,8 @@ pub mod transparent_button {
                     UnitPoint::TOP,
                     UnitPoint::BOTTOM,
                     (
-                        Color::rgba(1.0, 1.0, 1.0, 0.2),
-                        Color::rgba(1.0, 1.0, 1.0, 0.2),
+                        Color::rgba(0.0, 0.0, 0.0, 0.5),
+                        Color::rgba(0.0, 0.0, 0.0, 0.5),
                     ),
                 )
             } else {
