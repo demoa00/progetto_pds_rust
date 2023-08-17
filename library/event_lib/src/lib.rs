@@ -13,6 +13,7 @@ use std::{
     io::{Read, Write},
     str::FromStr,
 };
+use EditState::*;
 
 /// Constant value of heigth of screen
 const H: usize = 1080;
@@ -51,11 +52,20 @@ fn function_2(num: usize) -> bool {
     return true;
 }
 
+#[derive(Clone, Data, PartialEq, Eq)]
+enum EditState {
+    ShortcutEditing(ShortcutKey),
+    PathEditing,
+    MouseDetecting,
+    None,
+}
+
 #[derive(Clone, Data, Lens)]
 pub struct AppState {
     name: String,
     buf: ImageBuf,
     shortcut: Shortcuts,
+    edit_state: EditState,
     #[data(ignore)]
     save_path: String,
     main_ui: bool,
@@ -66,7 +76,7 @@ impl AppState {
     fn retrive_save_path() -> String {
         let dirs = match UserDirs::new() {
             Some(d) => d,
-            None => panic!("Error finding user path!"),
+            Option::None => panic!("Error finding user path!"),
         };
 
         let new_path = String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
@@ -100,6 +110,7 @@ impl AppState {
             name: format!("Screenshot App"),
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
+            edit_state: EditState::None,
             save_path: AppState::retrive_save_path(),
             main_ui: true,
             taking_muose_position: false,
@@ -184,8 +195,16 @@ impl AppDelegate<AppState> for EventHandler {
                 println!("Buffer {:?}", self.keys_pressed);
 
                 if self.keys_pressed.len() == 2 {
-
                     //Shortcuts::new_shortcut_to_file(&self.keys_pressed);
+                    match &data.edit_state {
+                        ShortcutEditing(old_shortcut) => {
+                            data.shortcut
+                                .edit_shortcut(old_shortcut, &self.keys_pressed);
+
+                            data.edit_state = EditState::None;
+                        }
+                        _ => {}
+                    }
 
                     match data.shortcut.extract_value(&self.keys_pressed) {
                         Some(action) => match action {
@@ -196,7 +215,7 @@ impl AppDelegate<AppState> for EventHandler {
                                 function_2(3);
                             }
                         },
-                        None => {}
+                        Option::None => {}
                     }
                 }
 
@@ -206,7 +225,7 @@ impl AppDelegate<AppState> for EventHandler {
             druid::Event::KeyUp(ref key_event) => {
                 let index = match self.keys_pressed.index_of(&key_event.key) {
                     Some(i) => i,
-                    None => panic!("Key searched doesn't exist!"),
+                    Option::None => panic!("Key searched doesn't exist!"),
                 };
 
                 self.keys_pressed.remove(index);

@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
-    mem::size_of,
 };
 use Action::*;
 
@@ -151,7 +150,7 @@ impl Shortcuts {
     /// Allows you to change a key combination for
     /// a given shortcut and save it in the shortcut
     /// configuration file ( ___./shortcuts___ )
-    pub fn edit_shortcut(&mut self, old_shortcut: ShortcutKey, pressed_keys: &Vector<Key>) -> bool {
+    pub fn edit_shortcut(&mut self, old_shortcut: &ShortcutKey, pressed_keys: &Vector<Key>) -> bool {
         match self.map.contains_key(&old_shortcut) {
             true => {
                 let new_shortcut = ShortcutKey::new(pressed_keys);
