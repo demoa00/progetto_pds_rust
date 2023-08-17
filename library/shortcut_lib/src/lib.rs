@@ -95,7 +95,7 @@ impl Shortcuts {
         file.write_all(
             &bincode::serialize(&(
                 ShortcutKey::new(keys),
-                Action::Save, /* Mettere enum corrispondente all'azione voluta */
+                Action::NewScreenshot, /* Mettere enum corrispondente all'azione voluta */
             ))
             .unwrap(),
         )
@@ -115,15 +115,18 @@ impl Shortcuts {
         };
 
         loop {
-            let mut buf: [u8; size_of::<(ShortcutKey, Action)>()] =
-                [0; size_of::<(ShortcutKey, Action)>()];
+            let mut buf: [u8; 28] = [0; 28];    //Attenzione il numero 28 è frutto della funzione 
+                                                //bincode::serialized_size(&(ShortcutKey::new(keys), Action::NewScreenshot)).unwrap()
+
             match file.read_exact(&mut buf) {
                 Ok(_) => {
+                    println!("{:?}", buf);
                     let s: (ShortcutKey, Action) = bincode::deserialize(&buf).unwrap();
                     println!("{:?}", s);
                     shortcuts.insert(s.0, s.1);
                 }
                 Err(_) => {
+                    println!("{:?}", buf);
                     println!("fine lettura");
                     break;
                 }
