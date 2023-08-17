@@ -2,7 +2,7 @@ use bincode;
 use druid::{
     im::{OrdMap, Vector},
     keyboard_types::Key,
-    Data
+    Data,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -14,6 +14,7 @@ use Action::*;
 
 /// Simple struct that represent keys combination
 /// of an shortcut.
+#[repr(C)]
 #[derive(Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Data)]
 pub struct ShortcutKey(String, String);
 
@@ -43,6 +44,7 @@ impl ShortcutKey {
 /// available:
 /// - new screenshot
 /// - save
+#[repr(C)]
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Data)]
 pub enum Action {
     NewScreenshot,
@@ -84,7 +86,7 @@ impl Shortcuts {
             .write(true)
             .append(true)
             .create(true)
-            .open("./shortcuts")
+            .open("./shortcuts_mod")
         {
             Ok(f) => f,
             Err(e) => panic!("{}", e),
@@ -118,9 +120,13 @@ impl Shortcuts {
             match file.read_exact(&mut buf) {
                 Ok(_) => {
                     let s: (ShortcutKey, Action) = bincode::deserialize(&buf).unwrap();
+                    println!("{:?}", s);
                     shortcuts.insert(s.0, s.1);
                 }
-                Err(_) => break,
+                Err(_) => {
+                    println!("fine lettura");
+                    break;
+                }
             }
         }
 

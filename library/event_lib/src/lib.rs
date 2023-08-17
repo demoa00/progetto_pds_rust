@@ -164,6 +164,9 @@ impl AppDelegate<AppState> for EventHandler {
                 println!("Buffer {:?}", self.keys_pressed);
 
                 if self.keys_pressed.len() == 2 {
+
+                    //Shortcuts::new_shortcut_to_file(&self.keys_pressed);
+
                     match data.shortcut.extract_value(&self.keys_pressed) {
                         Some(action) => match action {
                             Action::NewScreenshot => {
