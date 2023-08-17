@@ -58,6 +58,8 @@ pub struct AppState {
     shortcut: Shortcuts,
     #[data(ignore)]
     save_path: String,
+    main_ui: bool,
+    taking_muose_position: bool,
 }
 
 impl AppState {
@@ -99,6 +101,8 @@ impl AppState {
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
             save_path: AppState::retrive_save_path(),
+            main_ui: true,
+            taking_muose_position: false,
         }
     }
 
@@ -131,6 +135,22 @@ impl AppState {
 
         file.write_all(&bincode::serialize(&new_path).unwrap())
             .expect("File writing failed!");
+    }
+
+    pub fn get_main_ui(&self) -> bool {
+        self.main_ui
+    }
+
+    pub fn set_main_ui(&mut self, value: bool) {
+        self.main_ui = value;
+    }
+
+    pub fn is_taking_mouse_position(&self) -> bool {
+        self.taking_muose_position
+    }
+
+    pub fn set_taking_mouse_position(&mut self, value: bool) {
+        self.taking_muose_position = value;
     }
 }
 
