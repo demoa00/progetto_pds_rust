@@ -2,7 +2,7 @@ use bincode;
 use druid::{
     im::{OrdMap, Vector},
     keyboard_types::Key,
-    Data
+    Data,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -189,6 +189,14 @@ impl Shortcuts {
             Some(a) => Some(a),
             None => None,
         }
+    }
+
+    pub fn to_string(&self) -> Vec<(String, String)> {
+        let mut result = vec![];
+        for shortcut in &self.map {
+            result.push((shortcut.0.to_string(), shortcut.1.to_string()));
+        }
+        result
     }
 }
 

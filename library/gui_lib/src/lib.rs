@@ -7,33 +7,16 @@ use transparent_button::transparent_button::*;
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
-//249 240 241     252 248 248
-enum ViewState {
-    MainView,
-    MenuView,
-}
 
 pub fn build_root_widget() -> impl Widget<AppState> {
     let top_bar = ViewSwitcher::new(
-        |data: &AppState, _| data.get_main_ui(),
-        move |_, data, _| {
-            if data.get_main_ui() {
-                Box::new(build_top_bar_widget(ViewState::MainView))
-            } else {
-                Box::new(build_top_bar_widget(ViewState::MenuView))
-            }
-        },
+        |data: &AppState, _| data.get_view_state(),
+        move |selector, _, _| Box::new(build_top_bar_widget(selector)),
     );
 
     let bottom_page = ViewSwitcher::new(
-        |data: &AppState, _| data.get_main_ui(),
-        move |_, data, _| {
-            if data.get_main_ui() {
-                Box::new(build_bottom_page_widget(ViewState::MainView))
-            } else {
-                Box::new(build_bottom_page_widget(ViewState::MenuView))
-            }
-        },
+        |data: &AppState, _| data.get_view_state(),
+        move |selector, _, _| Box::new(build_bottom_page_widget(selector)),
     );
 
     Flex::column()
@@ -43,7 +26,7 @@ pub fn build_root_widget() -> impl Widget<AppState> {
         .background(BOTTOM_PAGE_COLOR)
 }
 
-fn build_top_bar_widget(view_state: ViewState) -> impl Widget<AppState> {
+fn build_top_bar_widget(view_state: &ViewState) -> impl Widget<AppState> {
     match view_state {
         ViewState::MainView => {
             let button_new_screenshot = TransparentButton::with_bg(
@@ -56,7 +39,7 @@ fn build_top_bar_widget(view_state: ViewState) -> impl Widget<AppState> {
             );
             let button_options = TransparentButton::with_bg(
                 Image::new(ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap()),
-                |_, data: &mut AppState, _| data.set_main_ui(false),
+                |_, data: &mut AppState, _| data.set_view_state(ViewState::MenuView),
             );
             let left_part = Flex::row()
                 .main_axis_alignment(MainAxisAlignment::Start)
@@ -71,7 +54,7 @@ fn build_top_bar_widget(view_state: ViewState) -> impl Widget<AppState> {
         ViewState::MenuView => {
             let button_return = TransparentButton::with_bg(
                 Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
-                |_, data: &mut AppState, _| data.set_main_ui(true),
+                |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
             );
             Flex::row()
                 .main_axis_alignment(MainAxisAlignment::End)
@@ -81,7 +64,7 @@ fn build_top_bar_widget(view_state: ViewState) -> impl Widget<AppState> {
     }
 }
 
-fn build_bottom_page_widget(view_state: ViewState) -> impl Widget<AppState> {
+fn build_bottom_page_widget(view_state: &ViewState) -> impl Widget<AppState> {
     match view_state {
         ViewState::MainView => {
             let screeshot_viewer = ViewSwitcher::new(

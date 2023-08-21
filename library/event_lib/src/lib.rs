@@ -51,6 +51,12 @@ fn function_2(num: usize) -> bool {
     return true;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Data)]
+pub enum ViewState {
+    MainView,
+    MenuView,
+}
+
 #[derive(Clone, Data, Lens)]
 pub struct AppState {
     name: String,
@@ -58,7 +64,7 @@ pub struct AppState {
     shortcut: Shortcuts,
     #[data(ignore)]
     save_path: String,
-    main_ui: bool,
+    view_state: ViewState,
     taking_muose_position: bool,
 }
 
@@ -101,7 +107,7 @@ impl AppState {
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
             save_path: AppState::retrive_save_path(),
-            main_ui: true,
+            view_state: ViewState::MainView,
             taking_muose_position: false,
         }
     }
@@ -137,12 +143,12 @@ impl AppState {
             .expect("File writing failed!");
     }
 
-    pub fn get_main_ui(&self) -> bool {
-        self.main_ui
+    pub fn get_view_state(&self) -> ViewState {
+        self.view_state.clone()
     }
 
-    pub fn set_main_ui(&mut self, value: bool) {
-        self.main_ui = value;
+    pub fn set_view_state(&mut self, value: ViewState) {
+        self.view_state = value;
     }
 
     pub fn is_taking_mouse_position(&self) -> bool {
@@ -151,6 +157,10 @@ impl AppState {
 
     pub fn set_taking_mouse_position(&mut self, value: bool) {
         self.taking_muose_position = value;
+    }
+
+    pub fn get_shortcuts(&self) -> Vec<(String, String)> {
+        self.shortcut.to_string()
     }
 }
 
