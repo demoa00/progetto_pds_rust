@@ -62,7 +62,6 @@ pub struct AppState {
     name: String,
     buf: ImageBuf,
     shortcut: Shortcuts,
-    #[data(ignore)]
     save_path: String,
     view_state: ViewState,
     taking_muose_position: bool,
