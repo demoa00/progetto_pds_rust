@@ -64,7 +64,7 @@ pub struct AppState {
     shortcut: Shortcuts,
     save_path: String,
     view_state: ViewState,
-    pub taking_muose_position: bool,
+    taking_muose_position: bool,
 }
 
 impl AppState {

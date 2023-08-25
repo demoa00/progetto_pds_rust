@@ -1,4 +1,4 @@
-pub mod transparent_button {
+pub mod druid_mod {
     use druid::debug_state::DebugState;
     use druid::widget::prelude::*;
     use druid::widget::{Click, ControllerHost, Flex, Image, Label, LabelText, ZStack};

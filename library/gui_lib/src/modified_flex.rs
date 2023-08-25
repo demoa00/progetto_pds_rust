@@ -1,4 +1,4 @@
-pub mod modified_flex {
+pub mod druid_mod {
     use druid::debug_state::DebugState;
     use druid::kurbo::common::FloatExt;
     use druid::widget::prelude::*;
