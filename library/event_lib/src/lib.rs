@@ -64,7 +64,7 @@ pub struct AppState {
     shortcut: Shortcuts,
     save_path: String,
     view_state: ViewState,
-    taking_muose_position: bool,
+    pub taking_muose_position: bool,
 }
 
 impl AppState {
@@ -140,6 +140,10 @@ impl AppState {
 
         file.write_all(&bincode::serialize(&new_path).unwrap())
             .expect("File writing failed!");
+    }
+
+    pub fn get_save_path(&self) -> String {
+        self.save_path.clone()
     }
 
     pub fn get_view_state(&self) -> ViewState {

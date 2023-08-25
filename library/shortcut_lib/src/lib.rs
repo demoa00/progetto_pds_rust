@@ -10,6 +10,7 @@ use std::{
     io::{Read, Write},
     mem::size_of,
 };
+use strum_macros::EnumIter;
 use Action::*;
 
 /// Simple struct that represent keys combination
@@ -43,7 +44,7 @@ impl ShortcutKey {
 /// available:
 /// - new screenshot
 /// - save
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Data)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Data, EnumIter)]
 pub enum Action {
     NewScreenshot,
     Save,

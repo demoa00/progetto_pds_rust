@@ -1,173 +1,183 @@
 use druid::{widget::*, Color};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
+use shortcut_lib::*;
 mod transparent_button;
 use transparent_button::transparent_button::*;
 mod modified_flex;
 use modified_flex::modified_flex::*;
+use strum::IntoEnumIterator;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
 
-/*pub struct View {
-    top_bar: Rc<Container<AppState>>,
-    bottom_page: Rc<Container<AppState>>,
-    state: ViewState,
+pub fn build_root_widget() -> impl Widget<AppState> {
+    let main_view = View::new(ViewState::MainView);
+    let menu_view = View::new(ViewState::MenuView);
+
+    Flex::column()
+        .with_child(main_view.top_bar)
+        .with_child(main_view.bottom_page)
+        .with_child(menu_view.top_bar)
+        .with_child(menu_view.bottom_page)
+        .background(BOTTOM_PAGE_COLOR)
+}
+
+pub struct View {
+    top_bar: Box<dyn Widget<AppState>>,
+    bottom_page: Box<dyn Widget<AppState>>,
 }
 
 impl View {
     fn new(view_state: ViewState) -> View {
         View {
-            top_bar: Rc::new(build_top_bar_widget(&view_state)),
-            bottom_page: Rc::new(build_bottom_page_widget(&view_state)),
-            state: view_state,
+            top_bar: Box::new(View::build_top_bar_widget(&view_state)),
+            bottom_page: Box::new(View::build_bottom_page_widget(&view_state)),
         }
     }
 
+    fn build_top_bar_widget(view_state: &ViewState) -> impl Widget<AppState> {
+        match view_state {
+            ViewState::MainView => {
+                let button_new_screenshot = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| {
+                        /*ctx.submit_command(druid::commands::HIDE_WINDOW);
+                        data.set_taking_mouse_position(true);*/
+                        data.set_buf(take_screenshot(0));
+                    },
+                );
+                let button_options = TransparentButton::with_bg(
+                    Image::new(
+                        ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
+                    ),
+                    |_, data: &mut AppState, _| data.set_view_state(ViewState::MenuView),
+                );
+                let left_part = Flex::row()
+                    .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
+                    .with_flex_child(button_new_screenshot, 1.0)
+                    .must_fill_main_axis(false);
+                let right_part = Flex::row()
+                    .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                    .with_flex_child(button_options, 1.0);
+                let split = Split::columns(left_part, right_part).bar_size(0.0);
+                FlexMod::column(true)
+                    .with_child(split)
+                    .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
+            }
+            ViewState::MenuView => {
+                let button_return = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
+                );
+                FlexMod::row(false)
+                    .main_axis_alignment(modified_flex::modified_flex::MainAxisAlignment::End)
+                    .must_fill_main_axis(true)
+                    .with_flex_child(button_return, 1.0)
+                    .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
+                    .with_default_spacer()
+            }
+        }
+        .background(TOP_BAR_COLOR)
+    }
 
-}*/
+    fn build_bottom_page_widget(view_state: &ViewState) -> impl Widget<AppState> {
+        match view_state {
+            ViewState::MainView => {
+                let screeshot_viewer = Padding::new(
+                    (30.0, 30.0),
+                    ViewSwitcher::new(
+                        |data: &AppState, _| data.get_buf(),
+                        |_, data, _| Box::new(Image::new(data.get_buf())),
+                    ),
+                );
+                FlexMod::column(true)
+                    .with_child(screeshot_viewer)
+                    .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
+                    .center()
+                    .background(BOTTOM_PAGE_COLOR)
+            }
 
-pub fn build_root_widget() -> impl Widget<AppState> {
-    let main_top_bar = build_top_bar_widget(ViewState::MainView);
-    let menu_top_bar = build_top_bar_widget(ViewState::MenuView);
-    let main_bottom_page = build_bottom_page_widget(ViewState::MainView);
-    let menu_bottom_page = build_bottom_page_widget(ViewState::MenuView);
+            ViewState::MenuView => {
+                let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
+                for action in Action::iter() {
+                    shortcut_menu.add_option(
+                        action.to_string(),
+                        Flex::row()
+                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
+                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| println!("Voglio modificare {:?}", action))))
+                }
+                let mut path_menu = MenuOption::new("Saving".to_string());
+                path_menu.add_option(
+                    "Path".to_string(),
+                    Flex::row()
+                        .with_child(
+                            Label::new(|data: &AppState, _: &_| data.get_save_path())
+                                .with_text_color(Color::GRAY),
+                        )
+                        .with_child(TransparentButton::with_bg(
+                            Image::new(
+                                ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
+                            ),
+                            move |_, _data: &mut AppState, _| println!("Voglio modificare il path"),
+                        )),
+                );
+                let menu_options = Flex::column()
+                    .with_child(shortcut_menu.build())
+                    .with_child(path_menu.build());
 
-    Flex::column()
-        .with_child(main_top_bar)
-        .with_child(main_bottom_page)
-        .with_child(menu_top_bar)
-        .with_child(menu_bottom_page)
-        .background(BOTTOM_PAGE_COLOR)
+                FlexMod::column(false)
+                    .with_child(menu_options)
+                    .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
+                    .center()
+                    .background(BOTTOM_PAGE_COLOR)
+            }
+        }
+    }
+}
 
-    /*druid::widget::Flex::column()
-        .with_child(
-            FlexMod::column()
-                .with_child(build_top_bar_widget(&ViewState::MainView))
-                .visible_if(|data| data.get_view_state() == ViewState::MainView),
+struct MenuOption {
+    title: String,
+    options: Vec<Box<dyn Widget<AppState>>>,
+}
+
+impl MenuOption {
+    fn new(title: String) -> MenuOption {
+        MenuOption {
+            title: title,
+            options: vec![],
+        }
+    }
+
+    fn add_option(
+        self: &mut Self,
+        title: String,
+        interactive_part: impl Widget<AppState> + 'static,
+    ) {
+        let option = Split::columns(
+            Label::new(title)
+                .with_text_color(Color::GRAY)
+                .padding((0.0, 15.0)),
+            interactive_part.align_right(),
         )
-        .with_child(Label::new("GG"))
-
-    let mut cache: HashMap<ViewState, Container<AppState>> = HashMap::new();
-
-    cache.insert(
-        ViewState::MainView,
-        Flex::column()
-            .with_flex_child(build_top_bar_widget(&ViewState::MainView), 1.0)
-            .with_default_spacer()
-            .with_flex_child(build_bottom_page_widget(&ViewState::MainView), 1.0)
-            .background(BOTTOM_PAGE_COLOR),
-    );
-
-    cache.insert(
-        ViewState::MenuView,
-        Flex::column()
-            .with_flex_child(build_top_bar_widget(&ViewState::MenuView), 1.0)
-            .with_default_spacer()
-            .with_flex_child(build_bottom_page_widget(&ViewState::MenuView), 1.0)
-            .background(BOTTOM_PAGE_COLOR),
-    );
-
-    let t = build_top_bar_widget(&ViewState::MainView);
-    View
-
-    let main_view = View::new(ViewState::MainView);
-    let menu_view = View::new(ViewState::MenuView);
-
-    ViewSwitcher::new(
-        |data: &AppState, _| data.get_view_state(),
-        move |selector, _, _| {
-            let x = t.clone();
-
-            Box::new(x)
-        },
-    )
-
-    top_bars.insert(
-        ViewState::MainView,
-        build_top_bar_widget(&ViewState::MainView),
-    );
-
-    let top_bar = ViewSwitcher::new(
-        |data: &AppState, _| data.get_view_state(),
-        move |selector, _, _| Box::new(),
-    );
-
-    let bottom_page = ViewSwitcher::new(
-        |data: &AppState, _| data.get_view_state(),
-        move |selector, _, _| Box::new(build_bottom_page_widget(selector)),
-    );
-
-    Flex::column()
-        .with_flex_child(top_bar.background(TOP_BAR_COLOR), 1.0)
-        .with_default_spacer()
-        .with_flex_child(bottom_page.background(BOTTOM_PAGE_COLOR), 1.0)
-        .background(BOTTOM_PAGE_COLOR)*/
-}
-
-fn build_top_bar_widget(view_state: ViewState) -> impl Widget<AppState> {
-    match view_state {
-        ViewState::MainView => {
-            let button_new_screenshot = TransparentButton::with_bg(
-                Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
-                |_, data: &mut AppState, _| {
-                    /*ctx.submit_command(druid::commands::HIDE_WINDOW);
-                    data.set_taking_mouse_position(true);*/
-                    data.set_buf(take_screenshot(0));
-                },
-            );
-            let button_options = TransparentButton::with_bg(
-                Image::new(ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap()),
-                |_, data: &mut AppState, _| data.set_view_state(ViewState::MenuView),
-            );
-            let left_part = Flex::row()
-                .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
-                .with_flex_child(button_new_screenshot, 1.0)
-                .must_fill_main_axis(false);
-            let right_part = Flex::row()
-                .main_axis_alignment(druid::widget::MainAxisAlignment::End)
-                .with_flex_child(button_options, 1.0);
-            let split = Split::columns(left_part, right_part).bar_size(0.0);
-            FlexMod::column(true)
-                .with_child(split)
-                .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
-        }
-        ViewState::MenuView => {
-            let button_return = TransparentButton::with_bg(
-                Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
-                |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
-            );
-            FlexMod::row(false)
-                .main_axis_alignment(modified_flex::modified_flex::MainAxisAlignment::End)
-                .must_fill_main_axis(true)
-                .with_flex_child(button_return, 1.0)
-                .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
-                .with_default_spacer()
-        }
+        .bar_size(0.0);
+        self.options.push(Box::new(option));
     }
-    .background(TOP_BAR_COLOR)
-}
 
-fn build_bottom_page_widget(view_state: ViewState) -> impl Widget<AppState> {
-    match view_state {
-        ViewState::MainView => {
-            let screeshot_viewer = ViewSwitcher::new(
-                |data: &AppState, _| data.get_buf(),
-                |_, data, _| Box::new(Image::new(data.get_buf())),
-            );
-            FlexMod::column(true)
-                .with_child(screeshot_viewer)
-                .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
-                //.padding((20.0, 20.0))
-                .center()
-                .background(BOTTOM_PAGE_COLOR)
+    fn build(self: Self) -> impl Widget<AppState> {
+        let mut result = Flex::column().with_child(
+            Label::new(self.title)
+                .with_text_size(30.0)
+                .with_text_color(Color::BLACK)
+                .align_left()
+                .padding((30.0, 15.0)),
+        );
+        let mut options = Flex::column();
+        for option in self.options {
+            options.add_child(option.padding((0.0, 0.0)));
         }
-
-        ViewState::MenuView => FlexMod::column(false)
-            .with_child(Label::new("Work in progress").with_text_color(Color::rgb(0.0, 0.0, 0.0)))
-            .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
-            .center()
-            .background(BOTTOM_PAGE_COLOR),
+        result.add_child(options.padding((110.0, 0.0)));
+        result
     }
 }
