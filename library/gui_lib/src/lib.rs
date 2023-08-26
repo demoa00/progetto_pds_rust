@@ -1,12 +1,13 @@
-mod modified_flex;
-mod transparent_button;
+mod button_mod;
+mod flex_mod;
+
+use button_mod::druid_mod::*;
 use druid::{widget::*, Color};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
-use modified_flex::druid_mod::*;
+use flex_mod::druid_mod::*;
 use shortcut_lib::*;
 use strum::IntoEnumIterator;
-use transparent_button::druid_mod::*;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -72,7 +73,7 @@ impl View {
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
                 FlexMod::row(false)
-                    .main_axis_alignment(modified_flex::druid_mod::MainAxisAlignment::End)
+                    .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::End)
                     .must_fill_main_axis(true)
                     .with_flex_child(button_return, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
