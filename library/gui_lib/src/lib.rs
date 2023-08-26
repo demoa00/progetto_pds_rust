@@ -1,6 +1,9 @@
 mod button_mod;
 mod flex_mod;
 
+use std::thread;
+use std::time::Duration;
+
 use button_mod::druid_mod::*;
 use druid::{widget::*, Color};
 use druid::{ImageBuf, Widget, WidgetExt};
@@ -44,8 +47,10 @@ impl View {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        //ctx.submit_command(druid::commands::HIDE_WINDOW);
+                        ctx.window().set_size((0.0, 0.0));
+                        thread::sleep(Duration::from_secs(10));
                         data.set_buf(take_screenshot(0));
+                        ctx.window().set_size((300.0, 200.0));
                     },
                 );
                 let button_options = TransparentButton::with_bg(
