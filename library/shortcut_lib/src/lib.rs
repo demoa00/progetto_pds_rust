@@ -204,6 +204,17 @@ impl Shortcuts {
         }
     }
 
+
+    pub fn extract_key(&self, action: Action) -> Option<ShortcutKey>{
+        for e in &self.map {
+            if action == *e.1{
+                return Some(e.0.clone());
+            }
+        }
+
+        return None;
+    }
+
     pub fn to_string(&self) -> Vec<(String, String)> {
         let mut result = vec![];
         for shortcut in &self.map {

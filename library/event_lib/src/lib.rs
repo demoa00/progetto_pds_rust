@@ -51,6 +51,7 @@ fn function_2(num: usize) -> bool {
     println!("Save {num}");
     return true;
 }
+
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
     ShortcutEditing(ShortcutKey),
@@ -137,7 +138,7 @@ impl AppState {
         self.save_path.clone()
     }
 
-    pub fn set_save_path(&mut self, new_path: String) {
+    pub fn set_save_path(&mut self) {
         let mut file = match OpenOptions::new()
             .read(true)
             .write(true)
@@ -148,8 +149,10 @@ impl AppState {
             Err(e) => panic!("{}", e),
         };
 
-        file.write_all(&bincode::serialize(&new_path).unwrap())
+        file.write_all(&bincode::serialize(&self.buffer_path).unwrap())
             .expect("File writing failed!");
+
+        self.save_path = self.buffer_path.clone();
     }
 
     pub fn get_view_state(&self) -> ViewState {
