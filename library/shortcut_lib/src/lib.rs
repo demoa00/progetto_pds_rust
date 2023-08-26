@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
-    mem::size_of,
 };
 use strum_macros::EnumIter;
 use Action::*;
 
 /// Simple struct that represent keys combination
 /// of an shortcut.
+#[repr(C)]
 #[derive(Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Data)]
 pub struct ShortcutKey(String, String);
 
@@ -44,6 +44,7 @@ impl ShortcutKey {
 /// available:
 /// - new screenshot
 /// - save
+#[repr(C)]
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Data, EnumIter)]
 pub enum Action {
     NewScreenshot,
@@ -85,7 +86,7 @@ impl Shortcuts {
             .write(true)
             .append(true)
             .create(true)
-            .open("./shortcuts")
+            .open("./shortcuts_mod")
         {
             Ok(f) => f,
             Err(e) => panic!("{}", e),
@@ -94,7 +95,7 @@ impl Shortcuts {
         file.write_all(
             &bincode::serialize(&(
                 ShortcutKey::new(keys),
-                Action::Save, /* Mettere enum corrispondente all'azione voluta */
+                Action::NewScreenshot, /* Mettere enum corrispondente all'azione voluta */
             ))
             .unwrap(),
         )
@@ -114,14 +115,21 @@ impl Shortcuts {
         };
 
         loop {
-            let mut buf: [u8; size_of::<(ShortcutKey, Action)>()] =
-                [0; size_of::<(ShortcutKey, Action)>()];
+            let mut buf: [u8; 28] = [0; 28]; //Attenzione il numero 28 è frutto della funzione
+                                             //bincode::serialized_size(&(ShortcutKey::new(keys), Action::NewScreenshot)).unwrap()
+
             match file.read_exact(&mut buf) {
                 Ok(_) => {
+                    println!("{:?}", buf);
                     let s: (ShortcutKey, Action) = bincode::deserialize(&buf).unwrap();
+                    println!("{:?}", s);
                     shortcuts.insert(s.0, s.1);
                 }
-                Err(_) => break,
+                Err(_) => {
+                    println!("{:?}", buf);
+                    println!("fine lettura");
+                    break;
+                }
             }
         }
 
@@ -143,7 +151,11 @@ impl Shortcuts {
     /// Allows you to change a key combination for
     /// a given shortcut and save it in the shortcut
     /// configuration file ( ___./shortcuts___ )
-    pub fn edit_shortcut(&mut self, old_shortcut: ShortcutKey, pressed_keys: &Vector<Key>) -> bool {
+    pub fn edit_shortcut(
+        &mut self,
+        old_shortcut: &ShortcutKey,
+        pressed_keys: &Vector<Key>,
+    ) -> bool {
         match self.map.contains_key(&old_shortcut) {
             true => {
                 let new_shortcut = ShortcutKey::new(pressed_keys);

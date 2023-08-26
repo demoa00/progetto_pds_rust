@@ -1,6 +1,6 @@
 pub mod druid_mod {
     use druid::debug_state::DebugState;
-    use druid::widget::prelude::*;
+    use druid::widget::{prelude::*, SizedBox};
     use druid::widget::{Click, ControllerHost, Flex, Image, Label, LabelText, ZStack};
     use druid::{theme, Affine, Data, Insets, LinearGradient, UnitPoint};
     use druid::{Color, WidgetExt};
@@ -35,7 +35,7 @@ pub mod druid_mod {
         pub fn with_bg(
             bg: Image,
             f: impl Fn(&mut EventCtx, &mut T, &Env) + 'static,
-        ) -> impl Widget<T> {
+        ) -> SizedBox<T> {
             let img_with_padding = Flex::column()
                 .with_flex_child(bg.fix_size(BUTTON_DIM.0 - 20.0, BUTTON_DIM.1 - 20.0), 1.0)
                 .padding((0.0, 15.0));

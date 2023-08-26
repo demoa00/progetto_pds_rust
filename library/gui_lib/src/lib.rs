@@ -43,9 +43,8 @@ impl View {
             ViewState::MainView => {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
-                    |_, data: &mut AppState, _| {
-                        /*ctx.submit_command(druid::commands::HIDE_WINDOW);
-                        data.set_taking_mouse_position(true);*/
+                    |ctx, data: &mut AppState, _| {
+                        //ctx.submit_command(druid::commands::HIDE_WINDOW);
                         data.set_buf(take_screenshot(0));
                     },
                 );
@@ -101,33 +100,11 @@ impl View {
             }
 
             ViewState::MenuView => {
-                let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
-                for action in Action::iter() {
-                    shortcut_menu.add_option(
-                        action.to_string(),
-                        Flex::row()
-                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
-                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| println!("Voglio modificare {:?}", action))))
-                }
-                let mut path_menu = MenuOption::new("Saving".to_string());
-                path_menu.add_option(
-                    "Path".to_string(),
-                    Flex::row()
-                        .with_child(
-                            Label::new(|data: &AppState, _: &_| data.get_save_path())
-                                .with_text_color(Color::GRAY),
-                        )
-                        .with_child(TransparentButton::with_bg(
-                            Image::new(
-                                ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
-                            ),
-                            move |_, _data: &mut AppState, _| println!("Voglio modificare il path"),
-                        )),
-                );
+                let shortcut_menu = MenuOption::build_shortcut_menu_widget();
+                let path_menu = MenuOption::build_path_menu_widget();
                 let menu_options = Flex::column()
-                    .with_child(shortcut_menu.build())
-                    .with_child(path_menu.build());
-
+                    .with_child(shortcut_menu)
+                    .with_child(path_menu);
                 FlexMod::column(false)
                     .with_child(menu_options)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
@@ -162,7 +139,8 @@ impl MenuOption {
                 .padding((0.0, 15.0)),
             interactive_part.align_right(),
         )
-        .bar_size(0.0);
+        .bar_size(0.0)
+        .split_point(0.4);
         self.options.push(Box::new(option));
     }
 
@@ -172,13 +150,82 @@ impl MenuOption {
                 .with_text_size(30.0)
                 .with_text_color(Color::BLACK)
                 .align_left()
-                .padding((30.0, 15.0)),
+                .padding((40.0, 15.0)),
         );
         let mut options = Flex::column();
         for option in self.options {
             options.add_child(option.padding((0.0, 0.0)));
         }
-        result.add_child(options.padding((110.0, 0.0)));
+        result.add_child(options.padding((120.0, 0.0)));
         result
+    }
+
+    fn build_path_menu_widget() -> impl Widget<AppState> {
+        let mut path_menu = MenuOption::new("Saving".to_string());
+        path_menu.add_option(
+            "Path".to_string(),
+            Flex::row()
+                .with_child(ViewSwitcher::new(
+                    |data: &AppState, _| data.get_edit_state(),
+                    |selector, data, _| {
+                        Box::new(match selector {
+                            EditState::PathEditing => {
+                                let placeholder = data.get_save_path();
+                                Flex::column().with_child(
+                                    TextBox::new()
+                                        .with_placeholder(placeholder)
+                                        .fix_width(150.0)
+                                        .lens(AppState::buffer_path),
+                                )
+                            }
+                            _ => Flex::column().with_child(
+                                Label::new(|data: &AppState, _: &_| data.get_save_path())
+                                    .with_text_color(Color::GRAY),
+                            ),
+                        })
+                    },
+                ))
+                .with_child(ViewSwitcher::new(
+                    |data: &AppState, _| data.get_edit_state(),
+                    |selector, _, _| {
+                        Box::new(match selector {
+                            EditState::PathEditing => TransparentButton::with_bg(
+                                Image::new(
+                                    ImageBuf::from_file(format!("{}/check.png", UI_IMG_PATH))
+                                        .unwrap(),
+                                ),
+                                move |_, data: &mut AppState, _| {
+                                    data.set_edit_state(EditState::None);
+                                    println!("Path modificato")
+                                },
+                            ),
+                            _ => TransparentButton::with_bg(
+                                Image::new(
+                                    ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH))
+                                        .unwrap(),
+                                ),
+                                move |_, data: &mut AppState, _| {
+                                    data.set_edit_state(EditState::PathEditing);
+                                    println!("Voglio modificare il path")
+                                },
+                            ),
+                        })
+                    },
+                )),
+        );
+        path_menu.build()
+    }
+
+    fn build_shortcut_menu_widget() -> impl Widget<AppState> {
+        let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
+        for action in Action::iter() {
+            shortcut_menu.add_option(
+                        action.to_string(),
+                        Flex::row()
+                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
+                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| {/*data.set_edit_state(EditState::ShortcutEditing(data.get_shortcut()));*/ println!("Voglio modificare {:?}", action)})))
+        }
+
+        shortcut_menu.build()
     }
 }

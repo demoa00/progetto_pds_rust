@@ -13,6 +13,7 @@ use std::{
     io::{Read, Write},
     str::FromStr,
 };
+use EditState::*;
 
 /// Constant value of heigth of screen
 const H: usize = 1080;
@@ -50,6 +51,13 @@ fn function_2(num: usize) -> bool {
     println!("Save {num}");
     return true;
 }
+#[derive(Clone, Data, PartialEq, Eq)]
+pub enum EditState {
+    ShortcutEditing(ShortcutKey),
+    PathEditing,
+    MouseDetecting,
+    None,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Data)]
 pub enum ViewState {
@@ -63,15 +71,16 @@ pub struct AppState {
     buf: ImageBuf,
     shortcut: Shortcuts,
     save_path: String,
+    buffer_path: String,
     view_state: ViewState,
-    taking_muose_position: bool,
+    edit_state: EditState,
 }
 
 impl AppState {
     fn retrive_save_path() -> String {
         let dirs = match UserDirs::new() {
             Some(d) => d,
-            None => panic!("Error finding user path!"),
+            Option::None => panic!("Error finding user path!"),
         };
 
         let new_path = String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
@@ -106,8 +115,9 @@ impl AppState {
             buf: ImageBuf::empty(),
             shortcut: Shortcuts::from_file(),
             save_path: AppState::retrive_save_path(),
+            buffer_path: String::new(),
             view_state: ViewState::MainView,
-            taking_muose_position: false,
+            edit_state: EditState::None,
         }
     }
 
@@ -123,7 +133,7 @@ impl AppState {
         self.clone().buf
     }
 
-    pub fn get(&self) -> String {
+    pub fn get_save_path(&self) -> String {
         self.save_path.clone()
     }
 
@@ -142,28 +152,30 @@ impl AppState {
             .expect("File writing failed!");
     }
 
-    pub fn get_save_path(&self) -> String {
-        self.save_path.clone()
-    }
-
     pub fn get_view_state(&self) -> ViewState {
         self.view_state.clone()
     }
 
     pub fn set_view_state(&mut self, value: ViewState) {
+        // Al cambio di view si interrompe la ricezione di eventi
+        self.edit_state = None;
         self.view_state = value;
-    }
-
-    pub fn is_taking_mouse_position(&self) -> bool {
-        self.taking_muose_position
-    }
-
-    pub fn set_taking_mouse_position(&mut self, value: bool) {
-        self.taking_muose_position = value;
     }
 
     pub fn get_shortcuts(&self) -> Vec<(String, String)> {
         self.shortcut.to_string()
+    }
+
+    pub fn get_edit_state(&self) -> EditState {
+        self.edit_state.clone()
+    }
+
+    pub fn set_edit_state(&mut self, value: EditState) {
+        match &value {
+            PathEditing => self.buffer_path = self.save_path.clone(),
+            _ => {}
+        }
+        self.edit_state = value;
     }
 }
 
@@ -197,6 +209,17 @@ impl AppDelegate<AppState> for EventHandler {
                 println!("Buffer {:?}", self.keys_pressed);
 
                 if self.keys_pressed.len() == 2 {
+                    //Shortcuts::new_shortcut_to_file(&self.keys_pressed);
+                    match &data.edit_state {
+                        ShortcutEditing(old_shortcut) => {
+                            data.shortcut
+                                .edit_shortcut(old_shortcut, &self.keys_pressed);
+
+                            data.edit_state = EditState::None;
+                        }
+                        _ => {}
+                    }
+
                     match data.shortcut.extract_value(&self.keys_pressed) {
                         Some(action) => match action {
                             Action::NewScreenshot => {
@@ -206,7 +229,7 @@ impl AppDelegate<AppState> for EventHandler {
                                 function_2(3);
                             }
                         },
-                        None => {}
+                        Option::None => {}
                     }
                 }
 
@@ -216,7 +239,7 @@ impl AppDelegate<AppState> for EventHandler {
             druid::Event::KeyUp(ref key_event) => {
                 let index = match self.keys_pressed.index_of(&key_event.key) {
                     Some(i) => i,
-                    None => panic!("Key searched doesn't exist!"),
+                    Option::None => panic!("Key searched doesn't exist!"),
                 };
 
                 self.keys_pressed.remove(index);
@@ -228,6 +251,26 @@ impl AppDelegate<AppState> for EventHandler {
             _ => Some(event),
         }
     }
+
+    /*fn command(
+        &mut self,
+        ctx: &mut DelegateCtx,
+        target: druid::Target,
+        cmd: &druid::Command,
+        data: &mut AppState,
+        env: &Env,
+    ) -> druid::Handled {
+        println!("Oscuro");
+        if cmd.is(HIDE_WINDOW) {
+            println!("Oscuro");
+            // Start timer and at the end chiamare ctx.submit_command(druid::commands::SHOW_WINDOW);
+        }
+        if cmd.is(SHOW_WINDOW) {
+            // Take screenshot
+        }
+
+        druid::Handled::Yes
+    }*/
 }
 
 #[cfg(test)]
