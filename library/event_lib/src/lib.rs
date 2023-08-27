@@ -1,4 +1,4 @@
-use chrono::offset::Local;
+use chrono::Local;
 use directories::UserDirs;
 use druid::{
     im::Vector,
