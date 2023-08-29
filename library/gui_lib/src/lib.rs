@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color};
+use druid::{widget::*, Color, Data, LocalizedString, Menu, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -15,6 +15,34 @@ use strum::IntoEnumIterator;
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
+
+pub fn build_menu<T: Data>(_window: Option<WindowId>, _data: &AppState) -> Menu<T> {
+    let mut base = Menu::empty();
+
+    #[cfg(target_os = "macos")]
+    {
+        base = base.entry(
+            Menu::new(LocalizedString::new("File"))
+                .entry(druid::platform_menus::mac::file::new())
+                .entry(druid::platform_menus::mac::file::save()),
+        )
+    }
+    #[cfg(any(
+        target_os = "windows",
+        target_os = "freebsd",
+        target_os = "linux",
+        target_os = "openbsd"
+    ))]
+    {
+        base = base.entry(
+            Menu::new(LocalizedString::new("File"))
+                .entry(druid::platform_menus::win::file::new())
+                .entry(druid::platform_menus::win::file::save()),
+        )
+    }
+
+    return base;
+}
 
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
@@ -51,12 +79,9 @@ impl View {
 
                         win.set_window_state(druid::WindowState::Minimized);
 
-                        /* thread::sleep(Duration::from_millis(10));
-                        data.set_buf(take_screenshot(0)); */
-
                         let mut data_clone = data.clone();
-                        thread::spawn(move ||{
-                            thread::sleep(Duration::from_millis(10));
+                        thread::spawn(move || {
+                            thread::sleep(Duration::from_millis(20));
                             data_clone.set_buf(take_screenshot(0));
                         });
 

@@ -254,34 +254,14 @@ impl AppDelegate<AppState> for EventHandler {
             _ => Some(event),
         }
     }
-
-    /*fn command(
-        &mut self,
-        ctx: &mut DelegateCtx,
-        target: druid::Target,
-        cmd: &druid::Command,
-        data: &mut AppState,
-        env: &Env,
-    ) -> druid::Handled {
-        println!("Oscuro");
-        if cmd.is(HIDE_WINDOW) {
-            println!("Oscuro");
-            // Start timer and at the end chiamare ctx.submit_command(druid::commands::SHOW_WINDOW);
-        }
-        if cmd.is(SHOW_WINDOW) {
-            // Take screenshot
-        }
-
-        druid::Handled::Yes
-    }*/
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
-    /* use super::*;
+    use super::*;
 
     #[test]
     fn it_works() {
         /* Write here */
-    } */
-}
+    }
+} */
