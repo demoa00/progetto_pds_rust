@@ -2,11 +2,11 @@ use bincode;
 use druid::{
     im::{OrdMap, Vector},
     keyboard_types::Key,
-    Data,
+    Data, EventCtx, HotKey,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::OpenOptions,
+    fs::{OpenOptions, self},
     io::{Read, Write},
 };
 use strum_macros::EnumIter;
@@ -204,10 +204,9 @@ impl Shortcuts {
         }
     }
 
-
-    pub fn extract_key(&self, action: Action) -> Option<ShortcutKey>{
+    pub fn extract_key(&self, action: Action) -> Option<ShortcutKey> {
         for e in &self.map {
-            if action == *e.1{
+            if action == *e.1 {
                 return Some(e.0.clone());
             }
         }
@@ -224,12 +223,3 @@ impl Shortcuts {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    /* use super::*;
-
-    #[test]
-    fn it_works() {
-        /* Write here */
-    } */
-}

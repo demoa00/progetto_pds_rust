@@ -240,12 +240,12 @@ impl AppDelegate<AppState> for EventHandler {
             }
 
             druid::Event::KeyUp(ref key_event) => {
-                let index = match self.keys_pressed.index_of(&key_event.key) {
+                /* let index = match self.keys_pressed.index_of(&key_event.key) {
                     Some(i) => i,
                     Option::None => panic!("Key searched doesn't exist!"),
                 };
 
-                self.keys_pressed.remove(index);
+                self.keys_pressed.remove(index); */
 
                 println!("Buffer {:?}", self.keys_pressed);
                 return Some(event);
@@ -256,12 +256,3 @@ impl AppDelegate<AppState> for EventHandler {
     }
 }
 
-/* #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        /* Write here */
-    }
-} */

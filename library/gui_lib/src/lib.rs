@@ -1,11 +1,15 @@
 mod button_mod;
 mod flex_mod;
 
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, Data, LocalizedString, Menu, WindowId};
+use druid::{
+    commands, widget::*, Color, Data, FileDialogOptions, FileSpec, LocalizedString, Menu, MenuItem,
+    RawMods, WindowId,
+};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -35,10 +39,23 @@ pub fn build_menu<T: Data>(_window: Option<WindowId>, _data: &AppState) -> Menu<
     ))]
     {
         base = base.entry(
-            Menu::new(LocalizedString::new("File"))
-                .entry(druid::platform_menus::win::file::new())
-                .entry(druid::platform_menus::win::file::save()),
-        )
+            Menu::new(LocalizedString::new("common-menu-file-menu"))
+                .entry(
+                    druid::platform_menus::win::file::new().on_activate(|_, _, _| {
+                        println!("CIAO!!!");
+                    }),
+                )
+                .entry(
+                    MenuItem::new(LocalizedString::new("common-menu-file-save-as"))
+                        .command(
+                            commands::SHOW_SAVE_PANEL.with(
+                                FileDialogOptions::default()
+                                    .allowed_types(Vec::from([FileSpec::JPG, FileSpec::PNG, FileSpec::GIF]))
+                            ),
+                        )
+                        .hotkey(RawMods::CtrlShift, "S"),
+                ),
+        );
     }
 
     return base;
