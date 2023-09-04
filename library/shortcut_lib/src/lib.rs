@@ -2,11 +2,11 @@ use bincode;
 use druid::{
     im::{OrdMap, Vector},
     keyboard_types::Key,
-    Data, EventCtx, HotKey,
+    Data,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{OpenOptions, self},
+    fs::OpenOptions,
     io::{Read, Write},
 };
 use strum_macros::EnumIter;
@@ -120,14 +120,14 @@ impl Shortcuts {
 
             match file.read_exact(&mut buf) {
                 Ok(_) => {
-                    println!("{:?}", buf);
+                    //println!("{:?}", buf);
                     let s: (ShortcutKey, Action) = bincode::deserialize(&buf).unwrap();
-                    println!("{:?}", s);
+                    //println!("{:?}", s);
                     shortcuts.insert(s.0, s.1);
                 }
                 Err(_) => {
-                    println!("{:?}", buf);
-                    println!("fine lettura");
+                    //println!("{:?}", buf);
+                    //println!("fine lettura");
                     break;
                 }
             }
@@ -222,4 +222,3 @@ impl Shortcuts {
         result
     }
 }
-

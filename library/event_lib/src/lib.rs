@@ -1,37 +1,23 @@
-use chrono::Local;
 use directories::UserDirs;
-use druid::{
-    im::Vector,
-    image::{ImageBuffer, Rgba},
-    piet::ImageFormat,
-    AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens,
-};
+use druid::{im::Vector, image::Rgba, AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens};
 use screenshots::Screen;
 use shortcut_lib::*;
-use std::{
-    fs::OpenOptions,
-    io::{Read, Write},
-    str::FromStr,
-};
+use std::path::PathBuf;
 use EditState::*;
 
 /// Constant value of heigth of screen
-const H: usize = 1080;
+//const H: usize = 1080;
 /// Constant value of width of screen
-const W: usize = 1920;
+//const W: usize = 1920;
 
 /// Function associated to shortcut enum
 /// ___Action::NewScreenshot___. When it is execute
 /// produce in output a screenshot of the entire
 /// desired screen
-pub fn take_screenshot(screen_index: usize) -> ImageBuf {
+/* pub fn take_screenshot(screen_index: usize) -> ImageBuf {
     let img = Screen::all().unwrap()[screen_index].capture().unwrap();
     let x: ImageBuffer<Rgba<u8>, Vec<u8>> =
         ImageBuffer::from_raw(W as u32, H as u32, img.rgba().clone()).unwrap();
-
-    let dt = Local::now();
-    x.save(dt.timestamp().to_string() + ".jpg")
-        .expect("Error in saving screenshot!");
 
     let raw = Screen::all().unwrap()[screen_index]
         .capture()
@@ -45,12 +31,19 @@ pub fn take_screenshot(screen_index: usize) -> ImageBuf {
         W,
         H,
     );
+} */
+
+pub fn take_screenshot(screen_index: usize) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let screens = Screen::all().unwrap();
+    let img = screens[screen_index].capture().unwrap();
+    
+    return img;
 }
 
-fn function_2(num: usize) -> bool {
+/* fn function_2(num: usize) -> bool {
     println!("Save {num}");
     return true;
-}
+} */
 
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
@@ -70,60 +63,37 @@ pub enum ViewState {
 pub struct AppState {
     name: String,
     buf: ImageBuf,
-    shortcut: Shortcuts,
-    save_path: String,
-    buffer_path: String,
+    #[data(ignore)]
+    save_path: PathBuf,
+    text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
     edit_state: EditState,
 }
 
 impl AppState {
-    fn retrive_save_path() -> String {
-        let dirs = match UserDirs::new() {
-            Some(d) => d,
-            Option::None => panic!("Error finding user path!"),
-        };
-
-        let new_path = String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
-
-        let mut file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open("./path")
-        {
-            Ok(f) => f,
-            Err(e) => panic!("{}", e),
-        };
-
-        let mut buf: Vec<u8> = Vec::new();
-
-        if file.read_to_end(&mut buf).unwrap() == 0 {
-            file.write_all(&bincode::serialize(&new_path).unwrap())
-                .expect("File writing failed!");
-
-            return String::from_str(dirs.home_dir().to_str().unwrap()).unwrap();
-        } else {
-            let path: String = bincode::deserialize::<String>(&buf).unwrap().to_string();
-
-            return path;
-        }
-    }
-
     pub fn new() -> Self {
+        let user_dirs = match UserDirs::new() {
+            Some(d) => d,
+            Option::None => panic!("Error finding user's dir path!"),
+        };
+
+        let img_dir = match user_dirs.picture_dir() {
+            Some(dir) => dir.to_owned(),
+            Option::None => panic!("Error finding image dir path!"),
+        };
+
         Self {
             name: format!("Screenshot App"),
             buf: ImageBuf::empty(),
-            shortcut: Shortcuts::from_file(),
-            save_path: AppState::retrive_save_path(),
-            buffer_path: String::new(),
+            save_path: img_dir,
+            text_buffer: String::new(),
             view_state: ViewState::MainView,
             edit_state: EditState::None,
         }
     }
 
     pub fn get_name(&self) -> String {
-        self.clone().name
+        return self.clone().name;
     }
 
     pub fn set_buf(&mut self, buf: ImageBuf) {
@@ -131,32 +101,15 @@ impl AppState {
     }
 
     pub fn get_buf(&self) -> ImageBuf {
-        self.clone().buf
+        return self.buf.clone();
     }
 
-    pub fn get_save_path(&self) -> String {
-        self.save_path.clone()
-    }
-
-    pub fn set_save_path(&mut self) {
-        let mut file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create_new(true)
-            .open("./path")
-        {
-            Ok(f) => f,
-            Err(e) => panic!("{}", e),
-        };
-
-        file.write_all(&bincode::serialize(&self.buffer_path).unwrap())
-            .expect("File writing failed!");
-
-        self.save_path = self.buffer_path.clone();
+    pub fn get_save_path(&self) -> PathBuf {
+        return self.save_path.clone();
     }
 
     pub fn get_view_state(&self) -> ViewState {
-        self.view_state.clone()
+        return self.view_state.clone();
     }
 
     pub fn set_view_state(&mut self, value: ViewState) {
@@ -165,20 +118,12 @@ impl AppState {
         self.view_state = value;
     }
 
-    pub fn get_shortcuts(&self) -> Vec<(String, String)> {
-        self.shortcut.to_string()
+    pub fn set_edit_state(&mut self, new_state: EditState) {
+        self.edit_state = new_state;
     }
 
     pub fn get_edit_state(&self) -> EditState {
         self.edit_state.clone()
-    }
-
-    pub fn set_edit_state(&mut self, value: EditState) {
-        match &value {
-            PathEditing => self.buffer_path = self.save_path.clone(),
-            _ => {}
-        }
-        self.edit_state = value;
     }
 }
 
@@ -204,7 +149,7 @@ impl AppDelegate<AppState> for EventHandler {
         _env: &Env,
     ) -> Option<druid::Event> {
         match event {
-            druid::Event::KeyDown(ref key_event) => {
+            /* druid::Event::KeyDown(ref key_event) => {
                 if self.keys_pressed.contains(&key_event.key.clone()) == false {
                     self.keys_pressed.push_back(key_event.key.clone());
                 }
@@ -226,7 +171,7 @@ impl AppDelegate<AppState> for EventHandler {
                     match data.shortcut.extract_value(&self.keys_pressed) {
                         Some(action) => match action {
                             Action::NewScreenshot => {
-                                take_screenshot(0);
+                                //take_screenshot(0);
                             }
                             Action::Save => {
                                 function_2(3);
@@ -240,19 +185,17 @@ impl AppDelegate<AppState> for EventHandler {
             }
 
             druid::Event::KeyUp(ref key_event) => {
-                /* let index = match self.keys_pressed.index_of(&key_event.key) {
+                let index = match self.keys_pressed.index_of(&key_event.key) {
                     Some(i) => i,
                     Option::None => panic!("Key searched doesn't exist!"),
                 };
 
-                self.keys_pressed.remove(index); */
+                self.keys_pressed.remove(index);
 
                 println!("Buffer {:?}", self.keys_pressed);
                 return Some(event);
-            }
-
+            } */
             _ => Some(event),
         }
     }
 }
-

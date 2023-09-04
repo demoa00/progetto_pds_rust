@@ -1,15 +1,14 @@
 mod button_mod;
 mod flex_mod;
 
-use std::path::PathBuf;
+use chrono::Local;
+use directories::UserDirs;
+use native_dialog::FileDialog;
 use std::thread;
-use std::time::Duration;
+//use std::time::Duration;
 
 use button_mod::druid_mod::*;
-use druid::{
-    commands, widget::*, Color, Data, FileDialogOptions, FileSpec, LocalizedString, Menu, MenuItem,
-    RawMods, WindowId,
-};
+use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, RawMods, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -20,7 +19,7 @@ const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
 
-pub fn build_menu<T: Data>(_window: Option<WindowId>, _data: &AppState) -> Menu<T> {
+pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
     let mut base = Menu::empty();
 
     #[cfg(target_os = "macos")]
@@ -47,12 +46,37 @@ pub fn build_menu<T: Data>(_window: Option<WindowId>, _data: &AppState) -> Menu<
                 )
                 .entry(
                     MenuItem::new(LocalizedString::new("common-menu-file-save-as"))
-                        .command(
-                            commands::SHOW_SAVE_PANEL.with(
-                                FileDialogOptions::default()
-                                    .allowed_types(Vec::from([FileSpec::JPG, FileSpec::PNG, FileSpec::GIF]))
-                            ),
-                        )
+                        .on_activate(|ctx, data: &mut AppState, _| {
+                            let default_file_name =
+                                format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+
+                            let user_dirs = match UserDirs::new() {
+                                Some(d) => d,
+                                None => panic!("Error finding user's dir path!"),
+                            };
+
+                            let img_dir = match user_dirs.picture_dir() {
+                                Some(dir) => dir.to_owned(),
+                                None => panic!("Error finding image dir path!"),
+                            };
+
+                            let img = take_screenshot(0);
+
+                            thread::spawn(move || {
+                                match FileDialog::new()
+                                    .set_filename(&default_file_name)
+                                    .set_location(&img_dir)
+                                    .add_filter("PNG", &["png"])
+                                    .add_filter("JPG", &["jpg", "jpeg"])
+                                    .add_filter("GIF", &["gif"]) //le gif non vanno
+                                    .show_save_single_file()
+                                    .unwrap()
+                                {
+                                    Some(path) => img.save(path).expect("Error in saving image!"),
+                                    None => {}
+                                }
+                            });
+                        })
                         .hotkey(RawMods::CtrlShift, "S"),
                 ),
         );
@@ -92,7 +116,7 @@ impl View {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        let mut win = ctx.window().clone();
+                        /* let mut win = ctx.window().clone();
 
                         win.set_window_state(druid::WindowState::Minimized);
 
@@ -102,7 +126,10 @@ impl View {
                             data_clone.set_buf(take_screenshot(0));
                         });
 
-                        win.set_window_state(druid::WindowState::Restored);
+                        win.set_window_state(druid::WindowState::Restored); */
+
+                        //data.set_buf(take_screenshot(0));
+                        //data.set_buf(take_screenshot_2(0));
                     },
                 );
                 let button_options = TransparentButton::with_bg(
@@ -227,17 +254,20 @@ impl MenuOption {
                     |selector, data, _| {
                         Box::new(match selector {
                             EditState::PathEditing => {
-                                let placeholder = data.get_save_path();
+                                let placeholder =
+                                    data.get_save_path().to_str().unwrap().to_string(); //riguardare questa istruzione
                                 Flex::column().with_child(
                                     TextBox::new()
                                         .with_placeholder(placeholder)
                                         .fix_width(150.0)
-                                        .lens(AppState::buffer_path),
+                                        .lens(AppState::text_buffer),
                                 )
                             }
                             _ => Flex::column().with_child(
-                                Label::new(|data: &AppState, _: &_| data.get_save_path())
-                                    .with_text_color(Color::GRAY),
+                                Label::new(|data: &AppState, _: &_| {
+                                    data.get_save_path().to_str().unwrap().to_string()
+                                }) //riguardare questa istruzione
+                                .with_text_color(Color::GRAY),
                             ),
                         })
                     },
