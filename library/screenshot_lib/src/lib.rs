@@ -1,13 +1,11 @@
-use image::ColorType;
-use image::ImageFormat;
+use image::*;
 use screenshots::Screen;
 use std::path::Path;
-use std::time::Duration;
-use std::time::Instant;
 use std::thread;
+use std::time::Duration;
 
 //DEMO MAIN : only to try screenshots crate
-fn main() {
+/*fn main() {
     let start = Instant::now();
     let screens = Screen::all().unwrap();
     let path1 = Path::new("c:/Users/belal/OneDrive/Desktop/immagine.jpeg");
@@ -69,55 +67,55 @@ fn main() {
 
     println!("运行耗时: {:?}", start.elapsed());
 }
+*/
 
 /*
 
-  This function recieve a String containing the path,
-  then it saves a screenshot of the whole selected screen
+  This function recieve the current screen on witch the screenshot has to be taken,
+  then it saves a screenshot of the whole selected screen in a ImageBuffer
 
 */
 
-
-pub fn take_screenshot() -> RgbaImage {
+pub fn take_screenshot(current_screen: usize) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let screens = Screen::all().unwrap();
-    let path = Path::new(save_path.as_str());
-    let format =
-        take_format(save_path.clone()).expect("Error! Format not supported for this release!");
-    for screen in screens {
-        let image = screen.capture().unwrap_or_default();
-        //"screenshot" is the buffer of u8 (=>&Vec<u8>), ready to be saved
-        let screenshot = image.rgba();
-        image::save_buffer_with_format(
-            path,
-            screenshot,
-            image.width(),
-            image.height(),
-            ColorType::Rgba8,
-            format,
-        )
-        .ok();
-    }
-
-    return;
+    let current_screen = screens[current_screen];
+    let image = current_screen.capture().unwrap();
+    return image;
 }
-
-pub fn save_screenshot(save_path: String, image : RgbaImage) {
-
-
-}
-
 
 /*
 
-  This function recieve a String containing the path and a delay expressed in u64,
+  This function recieves an ImageBuffer and a path (with the extension) and saves it
+
+*/
+
+pub fn save_screenshot(save_path: String, screenshot: ImageBuffer<Rgba<u8>, Vec<u8>>) {
+    let path = Path::new(save_path.as_str());
+    let format =
+        take_format(save_path.clone()).expect("Error! Format not supported for this release!");
+    image::save_buffer_with_format(
+        path,
+        screenshot.as_bytes(),
+        screenshot.width(),
+        screenshot.height(),
+        ColorType::Rgba8,
+        format,
+    )
+    .ok();
+    return;
+}
+
+/*
+
+  This function recieve a delay expressed in u64 and the current screen,
   then it calls "take_screenshot"
 
 */
 
-pub fn take_screenshot_with_delay(save_path: String, time: u64) {
+pub fn take_screenshot_with_delay(time: u64, current_screen: usize) {
     let sleep_time = Duration::new(time, 0.0 as u32);
     thread::sleep(sleep_time);
-    take_screenshot(save_path);
+    take_screenshot(current_screen);
     return;
 }
 
