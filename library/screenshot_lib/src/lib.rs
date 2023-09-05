@@ -1,73 +1,8 @@
 use image::*;
-use screenshots::Screen;
+use screenshots::{DisplayInfo, Screen};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
-
-//DEMO MAIN : only to try screenshots crate
-/*fn main() {
-    let start = Instant::now();
-    let screens = Screen::all().unwrap();
-    let path1 = Path::new("c:/Users/belal/OneDrive/Desktop/immagine.jpeg");
-    let path2 = Path::new("c:/Users/belal/OneDrive/Desktop/immagine.png");
-    let path3 = Path::new("c:/Users/belal/OneDrive/Desktop/immagineRidotta.png");
-
-    for screen in screens {
-        println!("capturer {screen:?}");
-        let image = screen.capture().unwrap();
-        let obj = image.rgba();
-
-        image::save_buffer_with_format(
-            path1,
-            obj,
-            image.width(),
-            image.height(),
-            ColorType::Rgba8,
-            ImageFormat::Jpeg,
-        )
-        .ok();
-
-        image::save_buffer_with_format(
-            path2,
-            obj,
-            image.width(),
-            image.height(),
-            ColorType::Rgba8,
-            ImageFormat::Png,
-        )
-        .ok();
-        /*
-        image = screen.capture_area(300, 300, 300, 300).unwrap();
-        buffer = image.to_png(None).unwrap();
-        fs::write(
-            format!(
-                "c:/Users/belal/OneDrive/Desktop/{}-2.png",
-                screen.display_info.id
-            ),
-            buffer,
-        )
-        .unwrap();
-        */
-    }
-
-    let screen = Screen::from_point(100, 100).unwrap();
-    println!("capturer {screen:?}");
-
-    let image = screen.capture_area(300, 300, 300, 300).unwrap();
-    let obj2 = image.rgba();
-    image::save_buffer_with_format(
-        path3,
-        obj2,
-        image.width(),
-        image.height(),
-        ColorType::Rgba8,
-        ImageFormat::Png,
-    )
-    .ok();
-
-    println!("运行耗时: {:?}", start.elapsed());
-}
-*/
 
 /*
 
@@ -81,6 +16,69 @@ pub fn take_screenshot(current_screen: usize) -> ImageBuffer<Rgba<u8>, Vec<u8>> 
     let current_screen = screens[current_screen];
     let image = current_screen.capture().unwrap();
     return image;
+}
+
+/*
+
+  This function recieve the current screen on witch the screenshot has to be taken,
+  In this case, the area is also passed after a drag&drop in order to take a restricted area
+  then it saves a screenshot of the whole selected area in a ImageBuffer
+  It returns an Option so, in case the selected area is bigger than the current selected screen, None is returned 
+
+*/
+
+pub fn take_screenshot_area(current_screen: usize, start_coords: (i32, i32), end_coords: (i32, i32)) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    let screens = Screen::all().unwrap();
+    let current_screen = screens[current_screen];
+    let screen_infos = current_screen.display_info;
+    let infos = calculate_area(screen_infos, start_coords, end_coords);
+    match infos {
+        Some(info) => {
+            let image = current_screen
+                .capture_area(info.0, info.1, info.2 as u32, info.3 as u32)
+                .unwrap();
+            return Some(image);
+        }
+        _ => return None,
+    }
+}
+
+/*
+
+  This function verifies if the drag&drop comes from left to right, form top to bottom or viceversa, then i calculates
+  the top left corner and verifies if the dimensions of the area are compatibles with the current screen 
+
+*/
+
+pub fn calculate_area( screen_infos: DisplayInfo, start_coords: (i32, i32), end_coords: (i32, i32)) -> Option<(i32, i32, i32, i32)> {
+    let mut left_corner = (0, 0);
+    let x_diff = start_coords.0 - end_coords.0;
+    let y_diff = start_coords.1 - end_coords.1;
+    let mut width = 0;
+    let mut height = 0;
+    // from right to left
+    if x_diff < 0 {
+        left_corner.0 = end_coords.0;
+        width = -x_diff;
+    } else {
+        left_corner.0 = start_coords.0;
+        width = x_diff;
+    }
+    // from bottom to top
+    if y_diff < 0 {
+        left_corner.1 = end_coords.1;
+        height = -y_diff;
+    } else {
+        left_corner.1 = start_coords.1;
+        height = y_diff;
+    }
+    // if the top left corner + the 2 dimension are bigger than the screen sizes the screenshot is NOT valid
+    if (width + left_corner.0) > screen_infos.width as i32
+        || (height + left_corner.1) > screen_infos.height as i32
+    {
+        return None;
+    }
+    return Some((left_corner.0, left_corner.1, width, height));
 }
 
 /*
