@@ -76,13 +76,15 @@ fn main() {
   then it saves a screenshot of the whole selected screen
 
 */
-pub fn take_screenshot(save_path: String) {
+
+
+pub fn take_screenshot() -> RgbaImage {
     let screens = Screen::all().unwrap();
     let path = Path::new(save_path.as_str());
     let format =
         take_format(save_path.clone()).expect("Error! Format not supported for this release!");
     for screen in screens {
-        let image = screen.capture().unwrap();
+        let image = screen.capture().unwrap_or_default();
         //"screenshot" is the buffer of u8 (=>&Vec<u8>), ready to be saved
         let screenshot = image.rgba();
         image::save_buffer_with_format(
@@ -98,6 +100,12 @@ pub fn take_screenshot(save_path: String) {
 
     return;
 }
+
+pub fn save_screenshot(save_path: String, image : RgbaImage) {
+
+
+}
+
 
 /*
 
