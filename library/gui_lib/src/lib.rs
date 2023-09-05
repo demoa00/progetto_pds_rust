@@ -2,13 +2,12 @@ mod button_mod;
 mod flex_mod;
 
 use chrono::Local;
-use directories::UserDirs;
-use native_dialog::FileDialog;
+use native_dialog::{FileDialog, MessageDialog};
 use std::thread;
-//use std::time::Duration;
+use std::time::Duration;
 
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, RawMods, WindowId};
+use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, SysMods, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -22,65 +21,76 @@ const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Colo
 pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
     let mut base = Menu::empty();
 
-    #[cfg(target_os = "macos")]
-    {
-        base = base.entry(
-            Menu::new(LocalizedString::new("File"))
-                .entry(druid::platform_menus::mac::file::new())
-                .entry(druid::platform_menus::mac::file::save()),
-        )
-    }
-    #[cfg(any(
-        target_os = "windows",
-        target_os = "freebsd",
-        target_os = "linux",
-        target_os = "openbsd"
-    ))]
-    {
-        base = base.entry(
-            Menu::new(LocalizedString::new("common-menu-file-menu"))
-                .entry(
-                    druid::platform_menus::win::file::new().on_activate(|_, _, _| {
-                        println!("CIAO!!!");
-                    }),
-                )
-                .entry(
-                    MenuItem::new(LocalizedString::new("common-menu-file-save-as"))
-                        .on_activate(|ctx, data: &mut AppState, _| {
-                            let default_file_name =
-                                format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+    base = base.entry(
+        Menu::new(LocalizedString::new("common-menu-file-menu"))
+            .entry(
+                MenuItem::new("Save")
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        let img = data.get_buf().0;
 
-                            let user_dirs = match UserDirs::new() {
-                                Some(d) => d,
-                                None => panic!("Error finding user's dir path!"),
-                            };
+                        if img.is_empty() {
+                            MessageDialog::new()
+                                .set_title("Error in saving image")
+                                .set_text("Do first a screenshot!")
+                                .set_type(native_dialog::MessageType::Warning)
+                                .show_alert()
+                                .unwrap();
 
-                            let img_dir = match user_dirs.picture_dir() {
-                                Some(dir) => dir.to_owned(),
-                                None => panic!("Error finding image dir path!"),
-                            };
+                            return;
+                        }
 
-                            let img = take_screenshot(0);
+                        let default_file_name =
+                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
 
-                            thread::spawn(move || {
-                                match FileDialog::new()
-                                    .set_filename(&default_file_name)
-                                    .set_location(&img_dir)
-                                    .add_filter("PNG", &["png"])
-                                    .add_filter("JPG", &["jpg", "jpeg"])
-                                    .add_filter("GIF", &["gif"]) //le gif non vanno
-                                    .show_save_single_file()
-                                    .unwrap()
-                                {
-                                    Some(path) => img.save(path).expect("Error in saving image!"),
-                                    None => {}
-                                }
-                            });
-                        })
-                        .hotkey(RawMods::CtrlShift, "S"),
-                ),
-        );
-    }
+                        let data_clone = data.clone();
+                        thread::spawn(move || {
+                            let mut path = data_clone.get_save_path();
+                            path.push(default_file_name);
+                            path.set_extension(data_clone.get_default_extension());
+
+                            img.save(path).expect("Error in saving image!");
+                        });
+                    })
+                    .hotkey(SysMods::Cmd, "s"),
+            )
+            .entry(
+                MenuItem::new("Save as...")
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        let img = data.get_buf().0;
+
+                        if img.is_empty() {
+                            MessageDialog::new()
+                                .set_title("Error in saving image")
+                                .set_text("Do first a screenshot!")
+                                .set_type(native_dialog::MessageType::Warning)
+                                .show_alert()
+                                .unwrap();
+
+                            return;
+                        }
+
+                        let default_file_name =
+                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+
+                        let data_clone = data.clone();
+                        thread::spawn(move || {
+                            match FileDialog::new()
+                                .set_filename(&default_file_name)
+                                .set_location(&data_clone.get_save_path())
+                                .add_filter("JPG", &["jpg", "jpeg"])
+                                .add_filter("PNG", &["png"])
+                                .add_filter("GIF", &["gif"]) //le gif non vanno
+                                .show_save_single_file()
+                                .unwrap()
+                            {
+                                Some(path) => img.save(path).expect("Error in saving image!"),
+                                None => {}
+                            }
+                        });
+                    })
+                    .hotkey(SysMods::CmdShift, "s"),
+            ),
+    );
 
     return base;
 }
@@ -116,20 +126,18 @@ impl View {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        /* let mut win = ctx.window().clone();
+                        let mut win = ctx.window().clone();
 
                         win.set_window_state(druid::WindowState::Minimized);
 
-                        let mut data_clone = data.clone();
-                        thread::spawn(move || {
-                            thread::sleep(Duration::from_millis(20));
-                            data_clone.set_buf(take_screenshot(0));
+                        let hadle = thread::spawn(move || {
+                            thread::sleep(Duration::from_millis(2));
+                            return take_screenshot(0);
                         });
 
-                        win.set_window_state(druid::WindowState::Restored); */
+                        data.set_buf(hadle.join().unwrap());
 
-                        //data.set_buf(take_screenshot(0));
-                        //data.set_buf(take_screenshot_2(0));
+                        win.set_window_state(druid::WindowState::Restored);
                     },
                 );
                 let button_options = TransparentButton::with_bg(
@@ -172,8 +180,8 @@ impl View {
                 let screeshot_viewer = Padding::new(
                     (30.0, 30.0),
                     ViewSwitcher::new(
-                        |data: &AppState, _| data.get_buf(),
-                        |_, data, _| Box::new(Image::new(data.get_buf())),
+                        |data: &AppState, _| data.get_buf().1,
+                        |_, data, _| Box::new(Image::new(data.get_buf().1)),
                     ),
                 );
                 FlexMod::column(true)

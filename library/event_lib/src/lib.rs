@@ -1,14 +1,19 @@
 use directories::UserDirs;
-use druid::{im::Vector, image::Rgba, AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens};
+use druid::{
+    im::Vector,
+    image::{ImageBuffer, Rgba},
+    piet::ImageFormat,
+    AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens,
+};
 use screenshots::Screen;
 use shortcut_lib::*;
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use EditState::*;
 
 /// Constant value of heigth of screen
-//const H: usize = 1080;
+const H: usize = 1080;
 /// Constant value of width of screen
-//const W: usize = 1920;
+const W: usize = 1920;
 
 /// Function associated to shortcut enum
 /// ___Action::NewScreenshot___. When it is execute
@@ -33,11 +38,19 @@ use EditState::*;
     );
 } */
 
-pub fn take_screenshot(screen_index: usize) -> image::ImageBuffer<Rgba<u8>, Vec<u8>> {
+pub fn take_screenshot(screen_index: usize) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf) {
     let screens = Screen::all().unwrap();
     let img = screens[screen_index].capture().unwrap();
-    
-    return img;
+    let img_vec = img.clone().into_vec();
+
+    let img_buf = ImageBuf::from_raw(
+        img_vec,
+        ImageFormat::RgbaSeparate,
+        W,
+        H,
+    );
+
+    return (img, img_buf);
 }
 
 /* fn function_2(num: usize) -> bool {
@@ -62,9 +75,11 @@ pub enum ViewState {
 #[derive(Clone, Data, Lens)]
 pub struct AppState {
     name: String,
-    buf: ImageBuf,
+    #[data(ignore)]
+    buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf),
     #[data(ignore)]
     save_path: PathBuf,
+    default_extension: String,
     text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
     edit_state: EditState,
@@ -84,8 +99,9 @@ impl AppState {
 
         Self {
             name: format!("Screenshot App"),
-            buf: ImageBuf::empty(),
+            buf: (ImageBuffer::default(), ImageBuf::empty()),
             save_path: img_dir,
+            default_extension: String::from_str("jpg").unwrap(),
             text_buffer: String::new(),
             view_state: ViewState::MainView,
             edit_state: EditState::None,
@@ -96,16 +112,24 @@ impl AppState {
         return self.clone().name;
     }
 
-    pub fn set_buf(&mut self, buf: ImageBuf) {
+    pub fn set_buf(&mut self, buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)) {
         self.buf = buf;
     }
 
-    pub fn get_buf(&self) -> ImageBuf {
+    pub fn get_buf(&self) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf) {
         return self.buf.clone();
     }
 
     pub fn get_save_path(&self) -> PathBuf {
         return self.save_path.clone();
+    }
+
+    pub fn get_default_extension(&self) -> String {
+        return self.default_extension.clone();
+    }
+
+    pub fn set_default_extension(&mut self, new_extension: String) {
+        self.default_extension = new_extension;
     }
 
     pub fn get_view_state(&self) -> ViewState {
@@ -128,13 +152,13 @@ impl AppState {
 }
 
 pub struct EventHandler {
-    keys_pressed: Vector<druid::keyboard_types::Key>,
+    _keys_pressed: Vector<druid::keyboard_types::Key>,
 }
 
 impl EventHandler {
     pub fn new() -> Self {
         Self {
-            keys_pressed: Vector::new(),
+            _keys_pressed: Vector::new(),
         }
     }
 }
@@ -145,7 +169,7 @@ impl AppDelegate<AppState> for EventHandler {
         _ctx: &mut DelegateCtx,
         _window_id: druid::WindowId,
         event: druid::Event,
-        data: &mut AppState,
+        _data: &mut AppState,
         _env: &Env,
     ) -> Option<druid::Event> {
         match event {
