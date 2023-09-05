@@ -10,6 +10,7 @@ image = "0.24.7"
 event_lib = { path = "../event_lib" }
 shortcut_lib = { path = "../shortcut_lib" }
 strum = "0.25.0"
+screenshots = "0.8.2"
 
 chrono = "0.4.26"
 native-dialog = "0.6.4"

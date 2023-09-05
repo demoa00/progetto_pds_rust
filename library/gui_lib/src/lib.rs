@@ -3,11 +3,13 @@ mod flex_mod;
 
 use chrono::Local;
 use native_dialog::{FileDialog, MessageDialog};
+use screenshots::Screen;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, SysMods, WindowId};
+use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, SysMods, WindowDesc, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -33,7 +35,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| {
-                        let img = data.get_buf().0;
+                        let img = data.get_buf_save();
 
                         if img.is_empty() {
                             MessageDialog::new()
@@ -63,7 +65,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save as...")
                     .on_activate(|_ctx, data: &mut AppState, _| {
-                        let img = data.get_buf().0;
+                        let img = data.get_buf_save();
 
                         if img.is_empty() {
                             MessageDialog::new()
@@ -136,17 +138,20 @@ impl View {
                         let mut win = ctx.window().clone();
 
                         win.set_window_state(druid::WindowState::Minimized);
-                        
-                        let hadle = thread::spawn(move || {
-                            thread::sleep(Duration::from_millis(10));
-                            return take_screenshot(0);
-                        });
 
-                        data.set_buf(hadle.join().unwrap());
+                        ctx.request_timer(Duration::from_millis(500));
 
-                        win.set_window_state(druid::WindowState::Restored);
+                        //let screen_info = Screen::all().unwrap()[0].display_info;
+
+                        ctx.new_window(
+                            WindowDesc::new(Flex::<AppState>::row().background(Color::rgba(177.0, 171.0, 171.0, 0.389)))
+                                .show_titlebar(false)
+                                .transparent(true)
+                                .set_window_state(druid::WindowState::Maximized),
+                        );
                     },
                 );
+
                 let button_options = TransparentButton::with_bg(
                     Image::new(
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
@@ -187,8 +192,8 @@ impl View {
                 let screeshot_viewer = Padding::new(
                     (30.0, 30.0),
                     ViewSwitcher::new(
-                        |data: &AppState, _| data.get_buf().1,
-                        |_, data, _| Box::new(Image::new(data.get_buf().1)),
+                        |data: &AppState, _| data.get_buf_view(),
+                        |_, data, _| Box::new(Image::new(data.get_buf_view())),
                     ),
                 );
                 FlexMod::column(true)

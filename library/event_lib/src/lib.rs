@@ -8,6 +8,8 @@ use druid::{
 use screenshots::Screen;
 use shortcut_lib::*;
 use std::{path::PathBuf, str::FromStr};
+use druid::commands;
+use druid::Command;
 use EditState::*;
 
 /// Function associated to shortcut enum
@@ -49,11 +51,6 @@ pub fn take_screenshot(screen_index: usize) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, 
     return (img, img_buf);
 }
 
-/* fn function_2(num: usize) -> bool {
-    println!("Save {num}");
-    return true;
-} */
-
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
     ShortcutEditing(ShortcutKey),
@@ -72,13 +69,14 @@ pub enum ViewState {
 pub struct AppState {
     name: String,
     #[data(ignore)]
-    buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf),
+    buf_save: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    buf_view: ImageBuf,
     #[data(ignore)]
     save_path: PathBuf,
     default_extension: String,
     text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
-    edit_state: EditState,
+    edit_state: EditState
 }
 
 impl AppState {
@@ -95,7 +93,8 @@ impl AppState {
 
         Self {
             name: format!("Screenshot App"),
-            buf: (ImageBuffer::default(), ImageBuf::empty()),
+            buf_save: ImageBuffer::default(),
+            buf_view: ImageBuf::empty(),
             save_path: img_dir,
             default_extension: String::from_str("jpg").unwrap(),
             text_buffer: String::new(),
@@ -109,11 +108,16 @@ impl AppState {
     }
 
     pub fn set_buf(&mut self, buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)) {
-        self.buf = buf;
+        self.buf_save = buf.0;
+        self.buf_view = buf.1;
     }
 
-    pub fn get_buf(&self) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf) {
-        return self.buf.clone();
+    pub fn get_buf_save(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+        return self.buf_save.clone();
+    }
+
+    pub fn get_buf_view(&self) -> ImageBuf {
+        return self.buf_view.clone();
     }
 
     pub fn get_save_path(&self) -> PathBuf {
@@ -149,12 +153,16 @@ impl AppState {
 
 pub struct EventHandler {
     _keys_pressed: Vector<druid::keyboard_types::Key>,
+    start_point: (i32, i32),
+    end_point: (i32, i32),
 }
 
 impl EventHandler {
     pub fn new() -> Self {
         Self {
             _keys_pressed: Vector::new(),
+            start_point: (i32::default(), i32::default()),
+            end_point: (i32::default(), i32::default()),
         }
     }
 }
@@ -162,13 +170,48 @@ impl EventHandler {
 impl AppDelegate<AppState> for EventHandler {
     fn event(
         &mut self,
-        _ctx: &mut DelegateCtx,
-        _window_id: druid::WindowId,
+        ctx: &mut DelegateCtx,
+        window_id: druid::WindowId,
         event: druid::Event,
-        _data: &mut AppState,
+        data: &mut AppState,
         _env: &Env,
     ) -> Option<druid::Event> {
         match event {
+            druid::Event::Timer(ref timer_event) => {
+                //data.set_buf(take_screenshot(0));
+                data.set_edit_state(MouseDetecting);
+                
+                return Some(event);
+            },
+            druid::Event::MouseDown(ref mouse_event) =>{
+                if data.get_edit_state() == MouseDetecting {
+                    let start_point: (i32, i32) = (mouse_event.pos.x.ceil() as i32, mouse_event.pos.y.ceil() as i32);
+
+                    self.start_point = start_point;
+
+                    println!("{:?}", self.start_point);
+                }
+
+                return Some(event);
+            },
+            druid::Event::MouseUp(ref mouse_event) =>{
+                if data.get_edit_state() == MouseDetecting {
+                    let end_point: (i32, i32) = (mouse_event.pos.x.ceil() as i32, mouse_event.pos.y.ceil() as i32);
+
+                    self.end_point = end_point;
+
+                    println!("{:?}", self.end_point);
+
+                    data.set_buf(take_screenshot(0)); //da cambiare
+
+                    data.set_edit_state(None);
+
+                    ctx.submit_command(Command::new(commands::CLOSE_WINDOW, (), window_id));
+                }
+
+                return Some(event);
+            },
+
             /* druid::Event::KeyDown(ref key_event) => {
                 if self.keys_pressed.contains(&key_event.key.clone()) == false {
                     self.keys_pressed.push_back(key_event.key.clone());
