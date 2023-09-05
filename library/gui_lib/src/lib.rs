@@ -136,7 +136,7 @@ impl View {
                         let mut win = ctx.window().clone();
 
                         win.set_window_state(druid::WindowState::Minimized);
-
+                        
                         let hadle = thread::spawn(move || {
                             thread::sleep(Duration::from_millis(10));
                             return take_screenshot(0);

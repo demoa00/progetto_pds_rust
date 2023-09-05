@@ -10,11 +10,6 @@ use shortcut_lib::*;
 use std::{path::PathBuf, str::FromStr};
 use EditState::*;
 
-/// Constant value of heigth of screen
-const H: usize = 1080;
-/// Constant value of width of screen
-const W: usize = 1920;
-
 /// Function associated to shortcut enum
 /// ___Action::NewScreenshot___. When it is execute
 /// produce in output a screenshot of the entire
@@ -40,14 +35,15 @@ const W: usize = 1920;
 
 pub fn take_screenshot(screen_index: usize) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf) {
     let screens = Screen::all().unwrap();
+    let screen_info = screens[screen_index].display_info;
     let img = screens[screen_index].capture().unwrap();
     let img_vec = img.clone().into_vec();
 
     let img_buf = ImageBuf::from_raw(
         img_vec,
         ImageFormat::RgbaSeparate,
-        W,
-        H,
+        screen_info.width as usize,
+        screen_info.height as usize,
     );
 
     return (img, img_buf);
