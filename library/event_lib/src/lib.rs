@@ -7,6 +7,7 @@ use druid::{
 };
 use screenshots::Screen;
 use shortcut_lib::*;
+use screenshot_lib::*;
 use std::{path::PathBuf, str::FromStr};
 use druid::commands;
 use druid::Command;
@@ -202,7 +203,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                     println!("{:?}", self.end_point);
 
-                    data.set_buf(take_screenshot(0)); //da cambiare
+                    data.set_buf(take_screenshot_area(0, self.start_point, self.end_point).unwrap()); //da cambiare
 
                     data.set_edit_state(None);
 
