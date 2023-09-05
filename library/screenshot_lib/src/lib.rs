@@ -73,8 +73,7 @@ pub fn calculate_area( screen_infos: DisplayInfo, start_coords: (i32, i32), end_
         height = y_diff;
     }
     // if the top left corner + the 2 dimension are bigger than the screen sizes the screenshot is NOT valid
-    if (width + left_corner.0) > screen_infos.width as i32
-        || (height + left_corner.1) > screen_infos.height as i32
+    if (width + left_corner.0) > screen_infos.width as i32 || (height + left_corner.1) > screen_infos.height as i32
     {
         return None;
     }
