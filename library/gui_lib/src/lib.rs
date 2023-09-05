@@ -24,6 +24,13 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
     base = base.entry(
         Menu::new(LocalizedString::new("common-menu-file-menu"))
             .entry(
+                MenuItem::new("New screenshot")
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        data.set_buf(take_screenshot(0));
+                    })
+                    .hotkey(SysMods::Cmd, "n"),
+            )
+            .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| {
                         let img = data.get_buf().0;
@@ -131,7 +138,7 @@ impl View {
                         win.set_window_state(druid::WindowState::Minimized);
 
                         let hadle = thread::spawn(move || {
-                            thread::sleep(Duration::from_millis(2));
+                            thread::sleep(Duration::from_millis(10));
                             return take_screenshot(0);
                         });
 
