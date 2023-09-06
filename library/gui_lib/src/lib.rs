@@ -1,19 +1,16 @@
 mod button_mod;
 mod flex_mod;
-
-use chrono::Local;
-use native_dialog::{FileDialog, MessageDialog};
-use screenshots::Screen;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, LocalizedString, Menu, MenuItem, SysMods, WindowDesc, WindowId};
+use chrono::Local;
+use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowDesc, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
+use native_dialog::{FileDialog, MessageDialog};
+//use screenshot_lib::{take_screenshot, take_screenshot_area};
 use shortcut_lib::*;
+use std::thread;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
@@ -28,9 +25,12 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("New screenshot")
                     .on_activate(|_ctx, data: &mut AppState, _| {
-                        data.set_buf(take_screenshot(0));
+                        //data.set_buf(take_screenshot(0));
                     })
-                    .hotkey(SysMods::Cmd, "n"),
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut()
+                            .extract_value(Action::NewScreenshot)
+                    }),
             )
             .entry(
                 MenuItem::new("Save")
@@ -60,7 +60,9 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                             img.save(path).expect("Error in saving image!");
                         });
                     })
-                    .hotkey(SysMods::Cmd, "s"),
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut().extract_value(Action::Save)
+                    }),
             )
             .entry(
                 MenuItem::new("Save as...")
@@ -97,7 +99,9 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                             }
                         });
                     })
-                    .hotkey(SysMods::CmdShift, "s"),
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut().extract_value(Action::SaveAs)
+                    }),
             ),
     );
 
@@ -134,20 +138,21 @@ impl View {
             ViewState::MainView => {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
-                    |ctx, data: &mut AppState, _| {
+                    |ctx, _data: &mut AppState, _| {
                         let mut win = ctx.window().clone();
 
                         win.set_window_state(druid::WindowState::Minimized);
 
                         ctx.request_timer(Duration::from_millis(500));
 
-                        //let screen_info = Screen::all().unwrap()[0].display_info;
-
                         ctx.new_window(
-                            WindowDesc::new(Flex::<AppState>::row().background(Color::rgba(177.0, 171.0, 171.0, 0.389)))
-                                .show_titlebar(false)
-                                .transparent(true)
-                                .set_window_state(druid::WindowState::Maximized),
+                            WindowDesc::new(
+                                Flex::<AppState>::row()
+                                    .background(Color::rgba(177.0, 171.0, 171.0, 0.389)),
+                            )
+                            .show_titlebar(false)
+                            .transparent(true)
+                            .set_window_state(druid::WindowState::Maximized),
                         );
                     },
                 );

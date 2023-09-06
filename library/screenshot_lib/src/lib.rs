@@ -1,4 +1,4 @@
-use druid::{piet::ImageFormat, ImageBuf};
+use druid::ImageBuf;
 use image::*;
 use screenshots::{DisplayInfo, Screen};
 use std::path::Path;
@@ -76,7 +76,7 @@ pub fn calculate_area(
     // from right to left
     if x_diff < 0 {
         left_corner.0 = end_coords.0;
-        width =- x_diff;
+        width = -x_diff;
     } else {
         left_corner.0 = start_coords.0;
         width = x_diff;
@@ -84,7 +84,7 @@ pub fn calculate_area(
     // from bottom to top
     if y_diff < 0 {
         left_corner.1 = end_coords.1;
-        height =- y_diff;
+        height = -y_diff;
     } else {
         left_corner.1 = start_coords.1;
         height = y_diff;

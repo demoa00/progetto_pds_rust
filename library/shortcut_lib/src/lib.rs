@@ -1,224 +1,337 @@
 use bincode;
-use druid::{
-    im::{OrdMap, Vector},
-    keyboard_types::Key,
-    Data,
-};
+use druid::{im::HashMap, keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
+use std::fs::{copy, read_dir, remove_file};
 use std::{
     fs::OpenOptions,
     io::{Read, Write},
+    str::FromStr,
 };
 use strum_macros::EnumIter;
-use Action::*;
 
-/// Simple struct that represent keys combination
-/// of an shortcut.
-#[repr(C)]
-#[derive(Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Data)]
-pub struct ShortcutKey(String, String);
-
-impl ShortcutKey {
-    pub fn new(keys: &Vector<Key>) -> Self {
-        let mut keys_clone = keys.clone();
-
-        let key_0 = match keys_clone.pop_front().unwrap() {
-            Key::Character(c) => c,
-            _ => keys[0].to_string(),
-        };
-
-        let key_1 = match keys_clone.pop_front().unwrap() {
-            Key::Character(c) => c,
-            _ => keys[1].to_string(),
-        };
-
-        return ShortcutKey(key_0, key_1);
-    }
-
-    pub fn to_string(&self) -> String {
-        return format!("{}+{}", self.0, self.1);
-    }
-}
-
-/// This emun represent in verbose mode, all the possible actions
-/// available:
-/// - new screenshot
-/// - save
-#[repr(C)]
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Data, EnumIter)]
+#[derive(Debug, Data, Clone, Hash, PartialEq, Eq, EnumIter, Deserialize, Serialize)]
 pub enum Action {
     NewScreenshot,
     Save,
+    SaveAs,
 }
 
 impl Action {
     pub fn to_string(&self) -> String {
         match self {
-            NewScreenshot => "New screenshot".to_string(),
-            Save => "Save".to_string(),
+            Action::NewScreenshot => String::from_str("New screenshot").unwrap(),
+            Action::Save => String::from_str("Save").unwrap(),
+            Action::SaveAs => String::from_str("Save as").unwrap(),
+        }
+    }
+}
+
+trait ToFromString {
+    fn to_string(key: SysMods) -> Option<String>;
+    fn from_string(key: String) -> Option<SysMods>;
+}
+
+impl ToFromString for SysMods {
+    fn to_string(key: SysMods) -> Option<String> {
+        match key {
+            SysMods::Shift => Some(format!("Shift")),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::Cmd => Some(format!("Ctrl")),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::AltCmd => Some(format!("Alt + Ctrl")),
+            #[cfg(not(target_os = "macos"))]
+            SysMods::CmdShift => Some(format!("Ctrl + Shift")),
+            #[cfg(target_os = "macos")]
+            SysMods::Cmd => Some(format!("Cmd")),
+            #[cfg(target_os = "macos")]
+            SysMods::AltCmd => Some(format!("Alt + Cmd")),
+            #[cfg(target_os = "macos")]
+            SysMods::CmdShift => Some(format!("Cmd + Shift")),
+            _ => None,
         }
     }
 
-    pub fn from_str(str: &str) -> Option<Action> {
-        match str {
-            "New screenshot" => Some(NewScreenshot),
-            "Save" => Some(Save),
+    fn from_string(key: String) -> Option<SysMods> {
+        match key.as_str() {
+            "Shift" => Some(SysMods::Shift),
+            #[cfg(not(target_os = "macos"))]
+            "Ctrl" => Some(SysMods::Cmd),
+            #[cfg(not(target_os = "macos"))]
+            "Alt + Ctrl" => Some(SysMods::AltCmd),
+            #[cfg(not(target_os = "macos"))]
+            "Ctrl + Shift" => Some(SysMods::CmdShift),
+            #[cfg(target_os = "macos")]
+            "Cmd" => Some(SysMods::Cmd),
+            #[cfg(target_os = "macos")]
+            "Alt + Cmd" => Some(SysMods::AltCmd),
+            #[cfg(target_os = "macos")]
+            "Cmd + Shift" => Some(SysMods::CmdShift),
             _ => None,
         }
     }
 }
 
-/// This struct contains the collection of all shortcut
-/// available, each entry contains keys combination and
-/// the correlated action:
-/// - new screenshot -> ctrl+n
-/// - save -> ctrl+s
-#[derive(Clone, Debug, PartialEq, Eq, Data)]
+trait ToSysMods {
+    fn to_sysmods(key: Key) -> Option<SysMods>;
+    fn to_sysmods_combination(key: (Key, Key)) -> Option<SysMods>;
+}
+
+impl ToSysMods for Key {
+    fn to_sysmods(key: Key) -> Option<SysMods> {
+        match key {
+            Key::Shift => Some(SysMods::Shift),
+            #[cfg(not(target_os = "macos"))]
+            Key::Control => Some(SysMods::Cmd),
+            #[cfg(target_os = "macos")]
+            Key::Meta => Some(SysMods::Cmd),
+            _ => None,
+        }
+    }
+
+    fn to_sysmods_combination(keys: (Key, Key)) -> Option<SysMods> {
+        match keys {
+            #[cfg(not(target_os = "macos"))]
+            (Key::Alt, Key::Control) => Some(SysMods::AltCmd),
+            #[cfg(not(target_os = "macos"))]
+            (Key::Control, Key::Shift) => Some(SysMods::CmdShift),
+            #[cfg(target_os = "macos")]
+            (Key::Alt, Key::Meta) => Some(SysMods::AltCmd),
+            #[cfg(target_os = "macos")]
+            (Key::Meta, Key::Shift) => Some(SysMods::CmdShift),
+            _ => None,
+        }
+    }
+}
+
+trait ToFromCode {
+    fn to_code(key: SysMods) -> Option<usize>;
+    fn from_code(code: usize) -> Option<SysMods>;
+}
+
+impl ToFromCode for SysMods {
+    fn to_code(key: SysMods) -> Option<usize> {
+        match key {
+            SysMods::Shift => Some(0),
+            SysMods::Cmd => Some(1),
+            SysMods::AltCmd => Some(2),
+            SysMods::CmdShift => Some(3),
+            _ => None,
+        }
+    }
+
+    fn from_code(code: usize) -> Option<SysMods> {
+        match code {
+            0 => Some(SysMods::Shift),
+            1 => Some(SysMods::Cmd),
+            2 => Some(SysMods::AltCmd),
+            3 => Some(SysMods::CmdShift),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Data, Clone)]
 pub struct Shortcuts {
-    map: OrdMap<ShortcutKey, Action>,
+    map: HashMap<Action, (String, String)>,
 }
 
 impl Shortcuts {
-    /// Debug and inizialization function for writing
-    /// shortcut on binary file
-    pub fn new_shortcut_to_file(keys: &Vector<Key>) {
+    fn create_default_shortcut_conf() {
         let mut file = match OpenOptions::new()
-            .write(true)
-            .append(true)
             .create(true)
-            .open("./shortcuts_mod")
+            .write(true)
+            .open("./conf/default_shortcut")
         {
             Ok(f) => f,
             Err(e) => panic!("{}", e),
         };
 
-        file.write_all(
+        // NEW SCREENSHOT
+        file.write(
             &bincode::serialize(&(
-                ShortcutKey::new(keys),
-                Action::NewScreenshot, /* Mettere enum corrispondente all'azione voluta */
+                Action::NewScreenshot,
+                SysMods::to_code(SysMods::Cmd).unwrap(),
+                Key::Character("n".to_string()).to_string(),
             ))
             .unwrap(),
         )
-        .expect("File writing failed!");
+        .expect("Error in writing config file!");
+        file.flush().expect("Error in flush config file!");
 
-        file.flush().expect("File writing failed!");
+        // SAVE
+        file.write(
+            &bincode::serialize(&(
+                Action::Save,
+                SysMods::to_code(SysMods::Cmd).unwrap(),
+                Key::Character("s".to_string()).to_string(),
+            ))
+            .unwrap(),
+        )
+        .expect("Error in writing config file!");
+        file.flush().expect("Error in flush config file!");
+
+        // SAVE AS
+        file.write(
+            &bincode::serialize(&(
+                Action::SaveAs,
+                SysMods::to_code(SysMods::CmdShift).unwrap(),
+                Key::Character("s".to_string()).to_string(),
+            ))
+            .unwrap(),
+        )
+        .expect("Error in writing config file!");
+        file.flush().expect("Error in flush config file!");
     }
 
-    /// Initialize and return the collection of shortcuts
-    /// stored in a binary file ( ___./shortcuts___ )
-    pub fn from_file() -> Self {
-        let mut shortcuts: OrdMap<ShortcutKey, Action> = OrdMap::new();
+    pub fn reset_shortcut_conf() {
+        let read_dir = match read_dir("./conf") {
+            Ok(r) => r,
+            Err(e) => panic!("{}", e),
+        };
 
-        let mut file = match OpenOptions::new().read(true).open("./shortcuts") {
+        let mut found = false;
+        for e in read_dir {
+            let name = e.unwrap().file_name();
+            if name == "shortcut" {
+                remove_file("./conf/shortcut").expect("Error in removing file!");
+                break;
+            }
+            if name == "default_shortcut" {
+                found = true;
+            }
+        }
+
+        if !found {
+            Shortcuts::create_default_shortcut_conf();
+        }
+
+        match copy("./conf/default_shortcut", "./conf/shortcut") {
+            Ok(_) => {}
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    pub fn new() -> Self {
+        let read_dir = match read_dir("./conf") {
+            Ok(r) => r,
+            Err(e) => panic!("{}", e),
+        };
+
+        let mut found = false;
+        for e in read_dir {
+            if e.unwrap().file_name() == "shortcut" {
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            Shortcuts::reset_shortcut_conf();
+        }
+
+        let mut file = match OpenOptions::new().read(true).open("./conf/shortcut") {
             Ok(f) => f,
             Err(e) => panic!("{}", e),
         };
 
+        let mut map: HashMap<Action, (String, String)> = HashMap::new();
+
+        /*
+            let size = bincode::serialized_size(&(Action::NewScreenshot, 0 as usize, Key::Character("n".to_string()).to_string())).unwrap();
+            println!("{}", size); // size = 21
+        */
+
         loop {
-            let mut buf: [u8; 28] = [0; 28]; //Attenzione il numero 28 è frutto della funzione
-                                             //bincode::serialized_size(&(ShortcutKey::new(keys), Action::NewScreenshot)).unwrap()
+            let mut buf: [u8; 21] = [0; 21];
 
             match file.read_exact(&mut buf) {
                 Ok(_) => {
-                    //println!("{:?}", buf);
-                    let s: (ShortcutKey, Action) = bincode::deserialize(&buf).unwrap();
-                    //println!("{:?}", s);
-                    shortcuts.insert(s.0, s.1);
+                    let shortcut: (Action, usize, String) = bincode::deserialize(&buf).unwrap();
+
+                    //println!("{:?}", shortcut);
+
+                    let v = match SysMods::from_code(shortcut.1) {
+                        Some(s) => match SysMods::to_string(s) {
+                            Some(k) => k,
+                            None => panic!("Error in parsing shortcut!"),
+                        },
+                        None => panic!("Error in parsing shortcut!"),
+                    };
+
+                    map.insert(shortcut.0, (v, shortcut.2));
                 }
                 Err(_) => {
-                    //println!("{:?}", buf);
-                    //println!("fine lettura");
                     break;
                 }
             }
         }
 
-        return Self { map: shortcuts };
+        //println!("{:?}", map);
+
+        return Self { map: map };
     }
 
-    /// Extract and return the list of available shortcut keys combination
-    pub fn extract_keys(&mut self) -> Vector<String> {
-        let keys: Vector<String> = self.map.keys().cloned().map(|k| k.to_string()).collect();
-        return keys;
+    pub fn reset(self) -> Self{
+        Shortcuts::reset_shortcut_conf();
+        return Shortcuts::new();
     }
 
-    /// Extract and return the list of available shortcut names
-    pub fn extract_values(&mut self) -> Vector<String> {
-        let values: Vector<String> = self.map.values().cloned().map(|a| a.to_string()).collect();
-        return values;
+    pub fn extract_value(&self, k: Action) -> Option<HotKey> {
+        let v = match self.map.get(&k) {
+            Some(v) => v.clone(),
+            None => panic!("Error in extracting action!"),
+        };
+
+        let s = match SysMods::from_string(v.0) {
+            Some(s) => s,
+            None => panic!("Error in parsing shortcut!"),
+        };
+
+        return Some(HotKey::new(s, v.1.as_str()));
     }
 
-    /// Allows you to change a key combination for
-    /// a given shortcut and save it in the shortcut
-    /// configuration file ( ___./shortcuts___ )
-    pub fn edit_shortcut(
-        &mut self,
-        old_shortcut: &ShortcutKey,
-        pressed_keys: &Vector<Key>,
-    ) -> bool {
-        match self.map.contains_key(&old_shortcut) {
-            true => {
-                let new_shortcut = ShortcutKey::new(pressed_keys);
-
-                if self.map.contains_key(&new_shortcut) == true {
-                    return false;
-                }
-
-                let function = self.map.remove(&old_shortcut).unwrap();
-
-                self.map.insert(new_shortcut, function);
-
-                let mut file = match OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .open("./shortcuts")
-                {
-                    Ok(f) => f,
-                    Err(e) => panic!("{}", e),
-                };
-
-                let map_clone = self.map.clone();
-                for s in map_clone.into_iter() {
-                    file.write_all(&bincode::serialize(&s).unwrap())
-                        .expect("File writing failed!");
-                }
-
-                file.flush().expect("File writing failed!");
-
-                return true;
-            }
-            false => {
-                panic!("Shortcut doesn't exist!");
-            }
+    pub fn update_value(&mut self, key: Action, new_value: (String, String)) {
+        if !self.map.contains_key(&key) {
+            panic!("Action does not exist!")
         }
-    }
 
-    /// Given a key combination, it return the associeted
-    /// action of the shortcut, if it exists
-    pub fn extract_value(&self, keys: &Vector<Key>) -> Option<Action> {
-        let s = ShortcutKey::new(keys);
+        self.map.remove(&key);
 
-        match self.map.get(&s).cloned() {
-            Some(a) => Some(a),
-            None => None,
-        }
-    }
+        let v = match SysMods::from_string(new_value.0) {
+            Some(s) => match SysMods::to_string(s) {
+                Some(k) => k,
+                None => panic!("Error in parsing shortcut!"),
+            },
+            None => panic!("Error in parsing shortcut!"),
+        };
 
-    pub fn extract_key(&self, action: Action) -> Option<ShortcutKey> {
-        for e in &self.map {
-            if action == *e.1 {
-                return Some(e.0.clone());
+        self.map.insert(key, (v, new_value.1));
+
+        let read_dir = match read_dir("./conf") {
+            Ok(r) => r,
+            Err(e) => panic!("{}", e),
+        };
+
+        for e in read_dir {
+            if e.unwrap().file_name() == "shortcut" {
+                remove_file("./conf/shortcut").expect("Error in removing file!");
+                break;
             }
         }
 
-        return None;
-    }
+        let mut file = match OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("./conf/shortcut")
+        {
+            Ok(f) => f,
+            Err(e) => panic!("{}", e),
+        };
 
-    pub fn to_string(&self) -> Vec<(String, String)> {
-        let mut result = vec![];
-        for shortcut in &self.map {
-            result.push((shortcut.0.to_string(), shortcut.1.to_string()));
+        for e in self.map.clone() {
+            file.write(&bincode::serialize(&(e.0, SysMods::to_code(SysMods::from_string(e.1.0).unwrap()).unwrap(), e.1 .1)).unwrap())
+                .expect("Error in writing config file!");
+            file.flush().expect("Error in flush config file!");
         }
-        result
     }
 }

@@ -1,60 +1,19 @@
 use directories::UserDirs;
+use druid::commands;
+use druid::Command;
 use druid::{
     im::Vector,
     image::{ImageBuffer, Rgba},
-    piet::ImageFormat,
     AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens,
 };
-use screenshots::Screen;
-use shortcut_lib::*;
 use screenshot_lib::*;
+use shortcut_lib::*;
 use std::{path::PathBuf, str::FromStr};
-use druid::commands;
-use druid::Command;
 use EditState::*;
-
-/// Function associated to shortcut enum
-/// ___Action::NewScreenshot___. When it is execute
-/// produce in output a screenshot of the entire
-/// desired screen
-/* pub fn take_screenshot(screen_index: usize) -> ImageBuf {
-    let img = Screen::all().unwrap()[screen_index].capture().unwrap();
-    let x: ImageBuffer<Rgba<u8>, Vec<u8>> =
-        ImageBuffer::from_raw(W as u32, H as u32, img.rgba().clone()).unwrap();
-
-    let raw = Screen::all().unwrap()[screen_index]
-        .capture()
-        .unwrap()
-        .rgba()
-        .clone();
-
-    return ImageBuf::from_raw(
-        &raw[0..H * W * ImageFormat::RgbaSeparate.bytes_per_pixel()],
-        ImageFormat::RgbaSeparate,
-        W,
-        H,
-    );
-} */
-
-pub fn take_screenshot(screen_index: usize) -> (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf) {
-    let screens = Screen::all().unwrap();
-    let screen_info = screens[screen_index].display_info;
-    let img = screens[screen_index].capture().unwrap();
-    let img_vec = img.clone().into_vec();
-
-    let img_buf = ImageBuf::from_raw(
-        img_vec,
-        ImageFormat::RgbaSeparate,
-        screen_info.width as usize,
-        screen_info.height as usize,
-    );
-
-    return (img, img_buf);
-}
 
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
-    ShortcutEditing(ShortcutKey),
+    ShortcutEditing((String, String)),
     PathEditing,
     MouseDetecting,
     None,
@@ -75,9 +34,10 @@ pub struct AppState {
     #[data(ignore)]
     save_path: PathBuf,
     default_extension: String,
+    default_shortcut: Shortcuts,
     text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
-    edit_state: EditState
+    edit_state: EditState,
 }
 
 impl AppState {
@@ -98,6 +58,7 @@ impl AppState {
             buf_view: ImageBuf::empty(),
             save_path: img_dir,
             default_extension: String::from_str("jpg").unwrap(),
+            default_shortcut: Shortcuts::new(),
             text_buffer: String::new(),
             view_state: ViewState::MainView,
             edit_state: EditState::None,
@@ -131,6 +92,10 @@ impl AppState {
 
     pub fn set_default_extension(&mut self, new_extension: String) {
         self.default_extension = new_extension;
+    }
+
+    pub fn get_default_shortcut(&self) -> Shortcuts {
+        return self.default_shortcut.clone();
     }
 
     pub fn get_view_state(&self) -> ViewState {
@@ -178,15 +143,20 @@ impl AppDelegate<AppState> for EventHandler {
         _env: &Env,
     ) -> Option<druid::Event> {
         match event {
-            druid::Event::Timer(ref timer_event) => {
+            druid::Event::Timer(ref _timer_event) => {
                 //data.set_buf(take_screenshot(0));
                 data.set_edit_state(MouseDetecting);
-                
+
+                data.get_default_shortcut().reset();
+
                 return Some(event);
-            },
-            druid::Event::MouseDown(ref mouse_event) =>{
+            }
+            druid::Event::MouseDown(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
-                    let start_point: (i32, i32) = (mouse_event.pos.x.ceil() as i32, mouse_event.pos.y.ceil() as i32);
+                    let start_point: (i32, i32) = (
+                        mouse_event.pos.x.ceil() as i32,
+                        mouse_event.pos.y.ceil() as i32,
+                    );
 
                     self.start_point = start_point;
 
@@ -194,16 +164,21 @@ impl AppDelegate<AppState> for EventHandler {
                 }
 
                 return Some(event);
-            },
-            druid::Event::MouseUp(ref mouse_event) =>{
+            }
+            druid::Event::MouseUp(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
-                    let end_point: (i32, i32) = (mouse_event.pos.x.ceil() as i32, mouse_event.pos.y.ceil() as i32);
+                    let end_point: (i32, i32) = (
+                        mouse_event.pos.x.ceil() as i32,
+                        mouse_event.pos.y.ceil() as i32,
+                    );
 
                     self.end_point = end_point;
 
                     println!("{:?}", self.end_point);
 
-                    data.set_buf(take_screenshot_area(0, self.start_point, self.end_point).unwrap()); //da cambiare
+                    data.set_buf(
+                        take_screenshot_area(0, self.start_point, self.end_point).unwrap(),
+                    ); //da cambiare
 
                     data.set_edit_state(None);
 
@@ -211,7 +186,7 @@ impl AppDelegate<AppState> for EventHandler {
                 }
 
                 return Some(event);
-            },
+            }
 
             /* druid::Event::KeyDown(ref key_event) => {
                 if self.keys_pressed.contains(&key_event.key.clone()) == false {
