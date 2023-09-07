@@ -9,11 +9,13 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use strum_macros::EnumIter;
 
-const CONFIG_SHORTCUT_FILE_PATH: &str = "./conf/shortcut_config.toml";
-const CONFIG_SHORTCUT_FILE_NAME: &str = "shortcut_config.toml";
+const CONF_DIR_PATH: &str = "./conf";
 
-const CONFIG_SAVEPATH_FILE_PATH: &str = "./conf/save_path_config.toml";
-const CONFIG_SAVEPATH_FILE_NAME: &str = "save_path_config.toml";
+const CONF_SHORTCUT_FILE_PATH: &str = "./conf/shortcut_conf.toml";
+const CONF_SHORTCUT_FILE_NAME: &str = "shortcut_conf.toml";
+
+const CONF_SAVEPATH_FILE_PATH: &str = "./conf/save_path_conf.toml";
+const CONF_SAVEPATH_FILE_NAME: &str = "save_path_conf.toml";
 
 trait ToFromString {
     fn to_string(key: SysMods) -> Option<String>;
@@ -184,14 +186,14 @@ impl Shortcuts {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(CONFIG_SHORTCUT_FILE_PATH)
-            .expect("Unable to open shortcut_config file");
+            .open(CONF_SHORTCUT_FILE_PATH)
+            .expect("Unable to open shortcut_conf file");
 
         let mut new_shortcuts = Shortcuts::default();
         let comment = "# AUTO GENERATED FILE - EDIT ONLY `code` AND `character` FIELDS\n\n# Possible value for `code`\n# Shift => 0\n# Cmd => 1\n# AltCmd => 2\n# CmdShift => 3\n\n";
 
         file.write_all(comment.as_bytes())
-            .expect("Could not write to shortcut_config file");
+            .expect("Could not write to shortcut_conf file");
 
         new_shortcuts
             .shortcuts
@@ -207,15 +209,15 @@ impl Shortcuts {
             toml::to_string(&new_shortcuts).expect("Unable to encode data to toml format");
 
         file.write(toml_string.as_bytes())
-            .expect("Could not write to shortcut_config file");
+            .expect("Could not write to shortcut_conf file");
 
         file.flush()
-            .expect("Could not write to shortcut_config file");
+            .expect("Could not write to shortcut_conf file");
     }
 
     fn from_toml() -> Self {
-        let contents = fs::read_to_string(CONFIG_SHORTCUT_FILE_PATH)
-            .expect("Could not read shortcut_config file");
+        let contents = fs::read_to_string(CONF_SHORTCUT_FILE_PATH)
+            .expect("Could not read shortcut_conf file");
 
         let new_shortcuts: Shortcuts =
             toml::from_str(&contents).expect("Unable to decode data from toml");
@@ -242,14 +244,14 @@ impl Shortcuts {
     }
 
     pub fn new() -> Self {
-        let read_dir = match read_dir("./conf") {
+        let read_dir = match read_dir(CONF_DIR_PATH) {
             Ok(r) => r,
             Err(_) => panic!("Unable to read conf dir"),
         };
 
         let mut found = false;
         for e in read_dir {
-            if e.unwrap().file_name() == CONFIG_SHORTCUT_FILE_NAME {
+            if e.unwrap().file_name() == CONF_SHORTCUT_FILE_NAME {
                 found = true;
                 break;
             }
@@ -296,14 +298,14 @@ impl Shortcuts {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(CONFIG_SHORTCUT_FILE_PATH)
-            .expect("Unable to open shortcut_config file");
+            .open(CONF_SHORTCUT_FILE_PATH)
+            .expect("Unable to open shortcut_conf file");
 
         file.write(toml_string.as_bytes())
-            .expect("Could not write to shortcut_config file");
+            .expect("Could not write to shortcut_conf file");
 
         file.flush()
-            .expect("Could not write to shortcut_config file");
+            .expect("Could not write to shortcut_conf file");
     }
 
     pub fn extract_actions(&self) -> Vector<Action> {
@@ -349,14 +351,14 @@ impl SavePath {
             .create(true)
             .write(true)
             .truncate(true)
-            .open(CONFIG_SAVEPATH_FILE_PATH)
-            .expect("Unable to open save_path_config file");
+            .open(CONF_SAVEPATH_FILE_PATH)
+            .expect("Unable to open save_path_conf file");
 
         let mut new_save_path = SavePath::default();
         let comment = "# AUTO GENERATED FILE - EDIT ONLY `save_path` FIELD\n\n";
 
         file.write_all(comment.as_bytes())
-            .expect("Could not write to save_path_config file");
+            .expect("Could not write to save_path_conf file");
 
         new_save_path.save_path = img_dir;
 
@@ -364,15 +366,15 @@ impl SavePath {
             toml::to_string(&new_save_path).expect("Unable to encode data to toml format");
 
         file.write(toml_string.as_bytes())
-            .expect("Could not write to save_path_config file");
+            .expect("Could not write to save_path_conf file");
 
         file.flush()
-            .expect("Could not write to save_path_config file");
+            .expect("Could not write to save_path_conf file");
     }
 
     fn from_toml() -> Self {
-        let contents = fs::read_to_string(CONFIG_SAVEPATH_FILE_PATH)
-            .expect("Could not read save_path_config file");
+        let contents = fs::read_to_string(CONF_SAVEPATH_FILE_PATH)
+            .expect("Could not read save_path_conf file");
 
         let new_save_path: SavePath =
             toml::from_str(&contents).expect("Unable to decode data from toml");
@@ -389,11 +391,11 @@ impl SavePath {
     }
 
     pub fn new() -> Self {
-        let read_dir = read_dir("./conf").expect("Unable to read conf dir");
+        let read_dir = read_dir(CONF_DIR_PATH).expect("Unable to read conf dir");
 
         let mut found = false;
         for e in read_dir {
-            if e.unwrap().file_name() == CONFIG_SAVEPATH_FILE_NAME {
+            if e.unwrap().file_name() == CONF_SAVEPATH_FILE_NAME {
                 found = true;
                 break;
             }
@@ -420,14 +422,14 @@ impl SavePath {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(CONFIG_SAVEPATH_FILE_PATH)
-            .expect("Unable to open save_path_config file");
+            .open(CONF_SAVEPATH_FILE_PATH)
+            .expect("Unable to open save_path_conf file");
 
         file.write(toml_string.as_bytes())
-            .expect("Could not write to save_path_config file");
+            .expect("Could not write to save_path_conf file");
 
         file.flush()
-            .expect("Could not write to save_path_config file");
+            .expect("Could not write to save_path_conf file");
     }
 
     pub fn to_string(&self) -> String {

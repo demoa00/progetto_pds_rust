@@ -24,7 +24,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
         Menu::new(LocalizedString::new("common-menu-file-menu"))
             .entry(
                 MenuItem::new("New screenshot")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
+                    .on_activate(|_ctx, _data: &mut AppState, _| {
                         //data.set_buf(take_screenshot(0));
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
