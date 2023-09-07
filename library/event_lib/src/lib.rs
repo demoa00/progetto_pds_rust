@@ -1,4 +1,3 @@
-use directories::UserDirs;
 use druid::commands;
 use druid::Command;
 use druid::{
@@ -42,21 +41,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let user_dirs = match UserDirs::new() {
-            Some(d) => d,
-            Option::None => panic!("Error finding user's dir path!"),
-        };
-
-        let img_dir = match user_dirs.picture_dir() {
-            Some(dir) => dir.to_owned(),
-            Option::None => panic!("Error finding image dir path!"),
-        };
-
         Self {
             name: format!("Screenshot App"),
             buf_save: ImageBuffer::default(),
             buf_view: ImageBuf::empty(),
-            save_path: img_dir,
+            save_path: SavePath::new().get_save_path(),
             default_extension: String::from_str("jpg").unwrap(),
             default_shortcut: Shortcuts::new(),
             text_buffer: String::new(),
