@@ -88,7 +88,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                             match FileDialog::new()
                                 .set_filename(&default_file_name)
                                 .set_location(&data_clone.get_save_path())
-                                .add_filter("JPG", &["jpg", "jpeg"])
+                                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
                                 .add_filter("PNG", &["png"])
                                 .add_filter("GIF", &["gif"]) //le gif non vanno
                                 .show_save_single_file()

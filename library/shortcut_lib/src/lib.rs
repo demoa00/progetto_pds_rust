@@ -211,13 +211,12 @@ impl Shortcuts {
         file.write(toml_string.as_bytes())
             .expect("Could not write to shortcut_conf file");
 
-        file.flush()
-            .expect("Could not write to shortcut_conf file");
+        file.flush().expect("Could not write to shortcut_conf file");
     }
 
     fn from_toml() -> Self {
-        let contents = fs::read_to_string(CONF_SHORTCUT_FILE_PATH)
-            .expect("Could not read shortcut_conf file");
+        let contents =
+            fs::read_to_string(CONF_SHORTCUT_FILE_PATH).expect("Could not read shortcut_conf file");
 
         let new_shortcuts: Shortcuts =
             toml::from_str(&contents).expect("Unable to decode data from toml");
@@ -304,8 +303,7 @@ impl Shortcuts {
         file.write(toml_string.as_bytes())
             .expect("Could not write to shortcut_conf file");
 
-        file.flush()
-            .expect("Could not write to shortcut_conf file");
+        file.flush().expect("Could not write to shortcut_conf file");
     }
 
     pub fn extract_actions(&self) -> Vector<Action> {
