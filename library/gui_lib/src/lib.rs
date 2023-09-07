@@ -44,8 +44,14 @@ impl View {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        //ctx.submit_command(druid::commands::HIDE_WINDOW);
+                        ctx.window().set_size((0.0, 0.0));
+                        /*ctx.submit_command(Command::new(
+                            druid::commands::HIDE_WINDOW,
+                            (),
+                            druid::Target::Window(ctx.window_id()),
+                        ));*/
                         data.set_buf(take_screenshot(0));
+                        //ctx.window().show();
                     },
                 );
                 let button_options = TransparentButton::with_bg(

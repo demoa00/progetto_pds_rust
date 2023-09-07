@@ -1,6 +1,7 @@
 use chrono::offset::Local;
 use directories::UserDirs;
 use druid::{
+    commands::{HIDE_WINDOW, SHOW_WINDOW},
     im::Vector,
     image::{ImageBuffer, Rgba},
     piet::ImageFormat,
@@ -251,11 +252,16 @@ impl AppDelegate<AppState> for EventHandler {
                 return Some(event);
             }
 
+            druid::Event::Command(ref cmd) => {
+                println!("Ci siamo");
+                return Some(event);
+            }
+
             _ => Some(event),
         }
     }
 
-    /*fn command(
+    fn command(
         &mut self,
         ctx: &mut DelegateCtx,
         target: druid::Target,
@@ -263,7 +269,8 @@ impl AppDelegate<AppState> for EventHandler {
         data: &mut AppState,
         env: &Env,
     ) -> druid::Handled {
-        println!("Oscuro");
+        println!("Oscuro {:?}", target);
+        ctx.submit_command(HIDE_WINDOW);
         if cmd.is(HIDE_WINDOW) {
             println!("Oscuro");
             // Start timer and at the end chiamare ctx.submit_command(druid::commands::SHOW_WINDOW);
@@ -273,7 +280,7 @@ impl AppDelegate<AppState> for EventHandler {
         }
 
         druid::Handled::Yes
-    }*/
+    }
 }
 
 #[cfg(test)]
