@@ -1,5 +1,9 @@
 use druid::commands;
+use druid::widget::Flex;
+use druid::Color;
 use druid::Command;
+use druid::WidgetExt;
+use druid::WindowDesc;
 use druid::{
     im::Vector,
     image::{ImageBuffer, Rgba},
@@ -24,19 +28,45 @@ pub enum ViewState {
     MenuView,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Data)]
+pub enum ScreenshotMode {
+    Fullscreen,
+    Cropped,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Data)]
+struct Options {
+    #[data(eq)]
+    save_path: PathBuf,
+    timer: u64,
+    extension: String,
+    shortcuts: Shortcuts,
+    screen_index: usize,
+}
+
+impl Options {
+    fn new() -> Options {
+        Options {
+            save_path: SavePath::new().get_save_path(),
+            timer: 0,
+            extension: String::from_str("jpg").unwrap(),
+            shortcuts: Shortcuts::new(),
+            screen_index: 0,
+        }
+    }
+}
+
 #[derive(Clone, Data, Lens)]
 pub struct AppState {
     name: String,
-    #[data(ignore)]
+    #[data(eq)]
     buf_save: ImageBuffer<Rgba<u8>, Vec<u8>>,
     buf_view: ImageBuf,
-    #[data(ignore)]
-    save_path: PathBuf,
-    default_extension: String,
-    default_shortcut: Shortcuts,
     text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
     edit_state: EditState,
+    screenshot_mode: ScreenshotMode,
+    options: Options,
 }
 
 impl AppState {
@@ -45,12 +75,11 @@ impl AppState {
             name: format!("Screenshot App"),
             buf_save: ImageBuffer::default(),
             buf_view: ImageBuf::empty(),
-            save_path: SavePath::new().get_save_path(),
-            default_extension: String::from_str("jpg").unwrap(),
-            default_shortcut: Shortcuts::new(),
             text_buffer: String::new(),
             view_state: ViewState::MainView,
             edit_state: EditState::None,
+            screenshot_mode: ScreenshotMode::Fullscreen,
+            options: Options::new(),
         }
     }
 
@@ -72,19 +101,19 @@ impl AppState {
     }
 
     pub fn get_save_path(&self) -> PathBuf {
-        return self.save_path.clone();
+        return self.options.save_path.clone();
     }
 
-    pub fn get_default_extension(&self) -> String {
-        return self.default_extension.clone();
+    pub fn get_extension(&self) -> String {
+        return self.options.extension.clone();
     }
 
-    pub fn set_default_extension(&mut self, new_extension: String) {
-        self.default_extension = new_extension;
+    pub fn set_extension(&mut self, new_extension: String) {
+        self.options.extension = new_extension;
     }
 
-    pub fn get_default_shortcut(&self) -> Shortcuts {
-        return self.default_shortcut.clone();
+    pub fn get_shortcuts(&self) -> Shortcuts {
+        return self.options.shortcuts.clone();
     }
 
     pub fn get_view_state(&self) -> ViewState {
@@ -103,6 +132,30 @@ impl AppState {
 
     pub fn get_edit_state(&self) -> EditState {
         self.edit_state.clone()
+    }
+
+    pub fn set_screenshot_mode(&mut self, new_screenshot_mode: ScreenshotMode) {
+        self.screenshot_mode = new_screenshot_mode;
+    }
+
+    pub fn get_screenshot_mode(&self) -> ScreenshotMode {
+        self.screenshot_mode.clone()
+    }
+
+    pub fn get_timer(&self) -> u64 {
+        self.options.timer
+    }
+
+    pub fn set_timer(&mut self, timer: u64) {
+        self.options.timer = timer;
+    }
+
+    pub fn get_screen_index(&self) -> usize {
+        self.options.screen_index
+    }
+
+    pub fn set_screen_index(&mut self, screen_index: usize) {
+        self.options.screen_index = screen_index;
     }
 }
 
@@ -133,10 +186,26 @@ impl AppDelegate<AppState> for EventHandler {
     ) -> Option<druid::Event> {
         match event {
             druid::Event::Timer(ref _timer_event) => {
-                //data.set_buf(take_screenshot(0));
-                data.set_edit_state(MouseDetecting);
-
-                data.get_default_shortcut().reset();
+                match data.get_screenshot_mode() {
+                    ScreenshotMode::Fullscreen => {
+                        data.set_buf(take_screenshot(data.get_screen_index()).unwrap())
+                    }
+                    ScreenshotMode::Cropped => {
+                        ctx.new_window(
+                            WindowDesc::new(
+                                Flex::<AppState>::row()
+                                    .background(Color::rgba(177.0, 171.0, 171.0, 0.389)),
+                            )
+                            .show_titlebar(false)
+                            .transparent(true)
+                            .set_window_state(druid::WindowState::Maximized)
+                            .set_always_on_top(true),
+                        );
+                        data.set_edit_state(MouseDetecting);
+                    }
+                }
+                // Perchè?
+                data.get_shortcuts().reset();
 
                 return Some(event);
             }
