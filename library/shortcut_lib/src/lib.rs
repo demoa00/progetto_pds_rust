@@ -1,15 +1,18 @@
-use bincode;
-use druid::{im::HashMap, keyboard_types::Key, Data, HotKey, SysMods};
+use druid::im::Vector;
+use druid::{keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
-use std::fs::{copy, read_dir, remove_file};
-use std::{
-    fs::OpenOptions,
-    io::{Read, Write},
-    str::FromStr,
-};
+use std::collections::BTreeMap;
+use std::fs::{self, read_dir, OpenOptions};
+use std::io::Write;
+use std::str::FromStr;
 use strum_macros::EnumIter;
 
-#[derive(Debug, Data, Clone, Hash, PartialEq, Eq, EnumIter, Deserialize, Serialize)]
+const CONFIG_SHORTCUT_FILE_PATH: &str = "./conf/shortcut_config.toml";
+const CONFIG_SHORTCUT_FILE_NAME: &str = "shortcut_config.toml";
+
+#[derive(
+    Debug, Data, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, EnumIter, Deserialize, Serialize,
+)]
 pub enum Action {
     NewScreenshot,
     Save,
@@ -22,6 +25,15 @@ impl Action {
             Action::NewScreenshot => String::from_str("New screenshot").unwrap(),
             Action::Save => String::from_str("Save").unwrap(),
             Action::SaveAs => String::from_str("Save as").unwrap(),
+        }
+    }
+
+    pub fn from_string(action: String) -> Self {
+        match action.as_str() {
+            "New screenshot" => Action::NewScreenshot,
+            "Save" => Action::Save,
+            "Save as" => Action::SaveAs,
+            _ => panic!("Could not translate string to enum Action!"),
         }
     }
 }
@@ -130,208 +142,162 @@ impl ToFromCode for SysMods {
     }
 }
 
-#[derive(Debug, Data, Clone)]
+#[derive(Debug, Data, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct Shortcut {
+    code: usize,
+    character: char,
+}
+
+impl Shortcut {
+    pub fn new(key: SysMods, character: char) -> Self {
+        return Self {
+            code: SysMods::to_code(key).unwrap(),
+            character: character,
+        };
+    }
+
+    pub fn to_string(&self) -> String {
+        let s = self.clone();
+
+        return format!(
+            "{} {}",
+            SysMods::to_string(SysMods::from_code(s.code).unwrap()).unwrap(),
+            s.character
+        );
+    }
+}
+
+#[derive(Debug, Data, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Shortcuts {
-    map: HashMap<Action, (String, String)>,
+    #[data(eq)]
+    shortcuts: BTreeMap<Action, Shortcut>,
 }
 
 impl Shortcuts {
-    fn create_default_shortcut_conf() {
-        let mut file = match OpenOptions::new()
+    fn create_toml() {
+        let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open("./conf/default_shortcut")
-        {
-            Ok(f) => f,
-            Err(e) => panic!("{}", e),
-        };
+            .open(CONFIG_SHORTCUT_FILE_PATH)
+            .expect("Unable to open shortcut config file");
 
-        // NEW SCREENSHOT
-        file.write(
-            &bincode::serialize(&(
-                Action::NewScreenshot,
-                SysMods::to_code(SysMods::Cmd).unwrap(),
-                Key::Character("n".to_string()).to_string(),
-            ))
-            .unwrap(),
-        )
-        .expect("Error in writing config file!");
-        file.flush().expect("Error in flush config file!");
+        let mut new_shortcuts = Shortcuts::default();
+        let comment = "# AUTO GENERATED CODE - EDIT ONLY `code` AND `character` FIELDS\n\n# Possible value for `code`\n# Shift => 0\n# Cmd => 1\n# AltCmd => 2\n# CmdShift => 3\n\n";
 
-        // SAVE
-        file.write(
-            &bincode::serialize(&(
-                Action::Save,
-                SysMods::to_code(SysMods::Cmd).unwrap(),
-                Key::Character("s".to_string()).to_string(),
-            ))
-            .unwrap(),
-        )
-        .expect("Error in writing config file!");
-        file.flush().expect("Error in flush config file!");
+        file.write_all(comment.as_bytes())
+            .expect("Could not write to shortcut config file");
 
-        // SAVE AS
-        file.write(
-            &bincode::serialize(&(
-                Action::SaveAs,
-                SysMods::to_code(SysMods::CmdShift).unwrap(),
-                Key::Character("s".to_string()).to_string(),
-            ))
-            .unwrap(),
-        )
-        .expect("Error in writing config file!");
-        file.flush().expect("Error in flush config file!");
+        new_shortcuts
+            .shortcuts
+            .insert(Action::NewScreenshot, Shortcut::new(SysMods::Cmd, 'n'));
+        new_shortcuts
+            .shortcuts
+            .insert(Action::Save, Shortcut::new(SysMods::Cmd, 's'));
+        new_shortcuts
+            .shortcuts
+            .insert(Action::SaveAs, Shortcut::new(SysMods::CmdShift, 's'));
+
+        let toml_string =
+            toml::to_string(&new_shortcuts).expect("Unable to encode data to toml format");
+
+        file.write(toml_string.as_bytes())
+            .expect("Could not write to shortcut config file");
     }
 
-    pub fn reset_shortcut_conf() {
-        let read_dir = match read_dir("./conf") {
-            Ok(r) => r,
-            Err(e) => panic!("{}", e),
+    fn from_toml() -> Self {
+        let contents = match fs::read_to_string(CONFIG_SHORTCUT_FILE_PATH) {
+            Ok(c) => c,
+            Err(_) => panic!("Could not read file {:?}", CONFIG_SHORTCUT_FILE_PATH),
         };
 
-        let mut found = false;
-        for e in read_dir {
-            let name = e.unwrap().file_name();
-            if name == "shortcut" {
-                remove_file("./conf/shortcut").expect("Error in removing file!");
-                break;
-            }
-            if name == "default_shortcut" {
-                found = true;
-            }
-        }
-
-        if !found {
-            Shortcuts::create_default_shortcut_conf();
-        }
-
-        match copy("./conf/default_shortcut", "./conf/shortcut") {
-            Ok(_) => {}
-            Err(e) => panic!("{}", e),
+        let new_shortcuts: Shortcuts = match toml::from_str(&contents) {
+            Ok(s) => s,
+            Err(_) => panic!("Unable to parse data from {:?}", CONFIG_SHORTCUT_FILE_PATH),
         };
+
+        new_shortcuts.shortcuts.iter().for_each(|e1|{
+            if new_shortcuts.shortcuts.iter().filter(|e2| e2.1 == e1.1).count() != 1 {
+                panic!("Found duplicate values in shortcut config file");
+            }
+        });
+
+        return new_shortcuts;
     }
 
     pub fn new() -> Self {
         let read_dir = match read_dir("./conf") {
             Ok(r) => r,
-            Err(e) => panic!("{}", e),
+            Err(_) => panic!("Unable to read conf dir"),
         };
 
         let mut found = false;
         for e in read_dir {
-            if e.unwrap().file_name() == "shortcut" {
+            if e.unwrap().file_name() == CONFIG_SHORTCUT_FILE_NAME {
                 found = true;
                 break;
             }
         }
 
         if !found {
-            Shortcuts::reset_shortcut_conf();
+            Shortcuts::create_toml();
         }
 
-        let mut file = match OpenOptions::new().read(true).open("./conf/shortcut") {
-            Ok(f) => f,
-            Err(e) => panic!("{}", e),
-        };
-
-        let mut map: HashMap<Action, (String, String)> = HashMap::new();
-
-        /*
-            let size = bincode::serialized_size(&(Action::NewScreenshot, 0 as usize, Key::Character("n".to_string()).to_string())).unwrap();
-            println!("{}", size); // size = 21
-        */
-
-        loop {
-            let mut buf: [u8; 21] = [0; 21];
-
-            match file.read_exact(&mut buf) {
-                Ok(_) => {
-                    let shortcut: (Action, usize, String) = bincode::deserialize(&buf).unwrap();
-
-                    //println!("{:?}", shortcut);
-
-                    let v = match SysMods::from_code(shortcut.1) {
-                        Some(s) => match SysMods::to_string(s) {
-                            Some(k) => k,
-                            None => panic!("Error in parsing shortcut!"),
-                        },
-                        None => panic!("Error in parsing shortcut!"),
-                    };
-
-                    map.insert(shortcut.0, (v, shortcut.2));
-                }
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-
-        //println!("{:?}", map);
-
-        return Self { map: map };
+        return Shortcuts::from_toml();
     }
 
-    pub fn reset(self) -> Self{
-        Shortcuts::reset_shortcut_conf();
+    pub fn reset(self) -> Self {
+        Shortcuts::create_toml();
         return Shortcuts::new();
     }
 
-    pub fn extract_value(&self, k: Action) -> Option<HotKey> {
-        let v = match self.map.get(&k) {
-            Some(v) => v.clone(),
-            None => panic!("Error in extracting action!"),
+    pub fn extract_value(&self, key: Action) -> Option<HotKey> {
+        let shortcut = match self.shortcuts.get(&key) {
+            Some(s) => s.clone(),
+            None => panic!("Unable to extract HotKey, Action does not exist"),
         };
 
-        let s = match SysMods::from_string(v.0) {
-            Some(s) => s,
-            None => panic!("Error in parsing shortcut!"),
+        let sysmod = match SysMods::from_code(shortcut.code) {
+            Some(m) => m,
+            None => panic!("Unable to translate code to SysMods"),
         };
 
-        return Some(HotKey::new(s, v.1.as_str()));
+        return Some(HotKey::new(sysmod, shortcut.character.to_string().as_str()));
     }
 
-    pub fn update_value(&mut self, key: Action, new_value: (String, String)) {
-        if !self.map.contains_key(&key) {
-            panic!("Action does not exist!")
+    pub fn update_value(&mut self, key: Action, new_value: (SysMods, char)) {
+        if !self.shortcuts.contains_key(&key) {
+            panic!("Unable to update shortcut, Action does not exist")
         }
 
-        self.map.remove(&key);
+        self.shortcuts.remove(&key);
 
-        let v = match SysMods::from_string(new_value.0) {
-            Some(s) => match SysMods::to_string(s) {
-                Some(k) => k,
-                None => panic!("Error in parsing shortcut!"),
-            },
-            None => panic!("Error in parsing shortcut!"),
-        };
+        self.shortcuts
+            .insert(key, Shortcut::new(new_value.0, new_value.1));
 
-        self.map.insert(key, (v, new_value.1));
+        let toml_string =
+            toml::to_string(&self.shortcuts).expect("Unable to encode data to toml format");
 
-        let read_dir = match read_dir("./conf") {
-            Ok(r) => r,
-            Err(e) => panic!("{}", e),
-        };
+        fs::write(CONFIG_SHORTCUT_FILE_PATH, toml_string)
+            .expect("Could not write to shortcut config file");
+    }
 
-        for e in read_dir {
-            if e.unwrap().file_name() == "shortcut" {
-                remove_file("./conf/shortcut").expect("Error in removing file!");
-                break;
-            }
+    pub fn extract_actions(&self) -> Vector<Action> {
+        let mut actions = Vector::new();
+
+        for s in self.shortcuts.clone() {
+            actions.push_back(s.0);
         }
 
-        let mut file = match OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open("./conf/shortcut")
-        {
-            Ok(f) => f,
-            Err(e) => panic!("{}", e),
-        };
+        return actions;
+    }
 
-        for e in self.map.clone() {
-            file.write(&bincode::serialize(&(e.0, SysMods::to_code(SysMods::from_string(e.1.0).unwrap()).unwrap(), e.1 .1)).unwrap())
-                .expect("Error in writing config file!");
-            file.flush().expect("Error in flush config file!");
+    pub fn extract_values(&self) -> Vector<Shortcut> {
+        let mut keys = Vector::new();
+
+        for s in self.shortcuts.clone() {
+            keys.push_back(s.1);
         }
+
+        return keys;
     }
 }
