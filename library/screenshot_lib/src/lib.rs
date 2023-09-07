@@ -54,23 +54,23 @@ pub fn calculate_area( screen_infos: DisplayInfo, start_coords: (i32, i32), end_
     let mut left_corner = (0, 0);
     let x_diff = start_coords.0 - end_coords.0;
     let y_diff = start_coords.1 - end_coords.1;
-    let mut width = 0;
-    let mut height = 0;
+    let width;
+    let height;
     // from right to left
-    if x_diff < 0 {
+    if x_diff > 0 {
         left_corner.0 = end_coords.0;
-        width = -x_diff;
+        width = x_diff;
     } else {
         left_corner.0 = start_coords.0;
-        width = x_diff;
+        width =- x_diff;
     }
     // from bottom to top
-    if y_diff < 0 {
+    if y_diff > 0 {
         left_corner.1 = end_coords.1;
-        height = -y_diff;
+        height = y_diff;
     } else {
         left_corner.1 = start_coords.1;
-        height = y_diff;
+        height =- y_diff;
     }
     // if the top left corner + the 2 dimension are bigger than the screen sizes the screenshot is NOT valid
     if (width + left_corner.0) > screen_infos.width as i32 || (height + left_corner.1) > screen_infos.height as i32
