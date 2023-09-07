@@ -3,7 +3,7 @@ use druid::im::Vector;
 use druid::{keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs::{self, read_dir, OpenOptions};
+use std::fs::{self, create_dir, read_dir, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -245,7 +245,10 @@ impl Shortcuts {
     pub fn new() -> Self {
         let read_dir = match read_dir(CONF_DIR_PATH) {
             Ok(r) => r,
-            Err(_) => panic!("Unable to read conf dir"),
+            Err(_) => {
+                create_dir(CONF_DIR_PATH).expect("Unable to create conf dir");
+                read_dir(CONF_DIR_PATH).expect("Unable to read conf dir")
+            }
         };
 
         let mut found = false;
@@ -389,7 +392,13 @@ impl SavePath {
     }
 
     pub fn new() -> Self {
-        let read_dir = read_dir(CONF_DIR_PATH).expect("Unable to read conf dir");
+        let read_dir = match read_dir(CONF_DIR_PATH) {
+            Ok(r) => r,
+            Err(_) => {
+                create_dir(CONF_DIR_PATH).expect("Unable to create conf dir");
+                read_dir(CONF_DIR_PATH).expect("Unable to read conf dir")
+            }
+        };
 
         let mut found = false;
         for e in read_dir {
