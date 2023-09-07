@@ -1,17 +1,112 @@
 mod button_mod;
 mod flex_mod;
-
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color};
+use chrono::Local;
+use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowDesc, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
+use native_dialog::{FileDialog, MessageDialog};
+//use screenshot_lib::{take_screenshot, take_screenshot_area};
 use shortcut_lib::*;
+use std::thread;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
+
+pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
+    let mut base = Menu::empty();
+
+    base = base.entry(
+        Menu::new(LocalizedString::new("common-menu-file-menu"))
+            .entry(
+                MenuItem::new("New screenshot")
+                    .on_activate(|_ctx, _data: &mut AppState, _| {
+                        //data.set_buf(take_screenshot(0));
+                    })
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut()
+                            .extract_value(Action::NewScreenshot)
+                    }),
+            )
+            .entry(
+                MenuItem::new("Save")
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        let img = data.get_buf_save();
+
+                        if img.is_empty() {
+                            MessageDialog::new()
+                                .set_title("Error in saving image")
+                                .set_text("Do first a screenshot!")
+                                .set_type(native_dialog::MessageType::Warning)
+                                .show_alert()
+                                .unwrap();
+
+                            return;
+                        }
+
+                        let default_file_name =
+                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+
+                        let data_clone = data.clone();
+                        thread::spawn(move || {
+                            let mut path = data_clone.get_save_path();
+                            path.push(default_file_name);
+                            path.set_extension(data_clone.get_default_extension());
+
+                            img.save(path).expect("Error in saving image!");
+                        });
+                    })
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut().extract_value(Action::Save)
+                    }),
+            )
+            .entry(
+                MenuItem::new("Save as...")
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        let img = data.get_buf_save();
+
+                        if img.is_empty() {
+                            MessageDialog::new()
+                                .set_title("Error in saving image")
+                                .set_text("Do first a screenshot!")
+                                .set_type(native_dialog::MessageType::Warning)
+                                .show_alert()
+                                .unwrap();
+
+                            return;
+                        }
+
+                        let default_file_name =
+                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+
+                        let data_clone = data.clone();
+                        thread::spawn(move || {
+                            match FileDialog::new()
+                                .set_filename(&default_file_name)
+                                .set_location(&data_clone.get_save_path())
+                                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
+                                .add_filter("PNG", &["png"])
+                                .add_filter("GIF", &["gif"]) //le gif non vanno
+                                .show_save_single_file()
+                                .unwrap()
+                            {
+                                Some(path) => img.save(path).expect("Error in saving image!"),
+                                None => {}
+                            }
+                        });
+                    })
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_default_shortcut().extract_value(Action::SaveAs)
+                    }),
+            ),
+    );
+
+    return base;
+}
 
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
@@ -43,17 +138,25 @@ impl View {
             ViewState::MainView => {
                 let button_new_screenshot = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
-                    |ctx, data: &mut AppState, _| {
-                        ctx.window().set_size((0.0, 0.0));
-                        /*ctx.submit_command(Command::new(
-                            druid::commands::HIDE_WINDOW,
-                            (),
-                            druid::Target::Window(ctx.window_id()),
-                        ));*/
-                        data.set_buf(take_screenshot(0));
-                        //ctx.window().show();
+                    |ctx, _data: &mut AppState, _| {
+                        let mut win = ctx.window().clone();
+
+                        win.set_window_state(druid::WindowState::Minimized);
+
+                        ctx.request_timer(Duration::from_millis(500));
+
+                        ctx.new_window(
+                            WindowDesc::new(
+                                Flex::<AppState>::row()
+                                    .background(Color::rgba(177.0, 171.0, 171.0, 0.389)),
+                            )
+                            .show_titlebar(false)
+                            .transparent(true)
+                            .set_window_state(druid::WindowState::Maximized),
+                        );
                     },
                 );
+
                 let button_options = TransparentButton::with_bg(
                     Image::new(
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
@@ -94,8 +197,8 @@ impl View {
                 let screeshot_viewer = Padding::new(
                     (30.0, 30.0),
                     ViewSwitcher::new(
-                        |data: &AppState, _| data.get_buf(),
-                        |_, data, _| Box::new(Image::new(data.get_buf())),
+                        |data: &AppState, _| data.get_buf_view(),
+                        |_, data, _| Box::new(Image::new(data.get_buf_view())),
                     ),
                 );
                 FlexMod::column(true)
@@ -176,17 +279,20 @@ impl MenuOption {
                     |selector, data, _| {
                         Box::new(match selector {
                             EditState::PathEditing => {
-                                let placeholder = data.get_save_path();
+                                let placeholder =
+                                    data.get_save_path().to_str().unwrap().to_string(); //riguardare questa istruzione
                                 Flex::column().with_child(
                                     TextBox::new()
                                         .with_placeholder(placeholder)
                                         .fix_width(150.0)
-                                        .lens(AppState::buffer_path),
+                                        .lens(AppState::text_buffer),
                                 )
                             }
                             _ => Flex::column().with_child(
-                                Label::new(|data: &AppState, _: &_| data.get_save_path())
-                                    .with_text_color(Color::GRAY),
+                                Label::new(|data: &AppState, _: &_| {
+                                    data.get_save_path().to_str().unwrap().to_string()
+                                }) //riguardare questa istruzione
+                                .with_text_color(Color::GRAY),
                             ),
                         })
                     },
