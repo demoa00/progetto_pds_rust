@@ -60,7 +60,7 @@ pub fn calculate_area(screen_infos: DisplayInfo, mut start_coords: (i32, i32), m
     if start_coords.0 < 0 {
         start_coords.0 = 0;
     }
-    if end_coords.0 <0 {
+    if end_coords.0 < 0 {
         end_coords.0 = 0;
     }
     // the screenshot area is between the current screen and a screen on his right 
@@ -77,7 +77,7 @@ pub fn calculate_area(screen_infos: DisplayInfo, mut start_coords: (i32, i32), m
     if end_coords.1 <0 {
         end_coords.1 = 0;
     }
-    // the screenshot area is between the current screen and a screen on his right 
+    // the screenshot area is between the current screen and a screen on his bottom 
     if start_coords.1 > screen_infos.height as i32{
         start_coords.1 = screen_infos.height as i32;
     }
@@ -143,11 +143,11 @@ pub fn save_screenshot(save_path: String, screenshot: ImageBuffer<Rgba<u8>, Vec<
 
 */
 
-pub fn take_screenshot_with_delay(time: u64, current_screen: usize) {
+pub fn take_screenshot_with_delay(time: u64, current_screen: usize) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let sleep_time = Duration::new(time, 0.0 as u32);
     thread::sleep(sleep_time);
-    take_screenshot(current_screen);
-    return;
+    let res = take_screenshot(current_screen);
+    return res;
 }
 
 pub fn take_format(save_path: String) -> Option<ImageFormat> {
