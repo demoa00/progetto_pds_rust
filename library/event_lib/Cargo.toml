@@ -9,7 +9,6 @@ edition = "2021"
 screenshot_lib = { path = "../screenshot_lib" }
 shortcut_lib = { path = "../shortcut_lib" }
 
-chrono = "0.4.26"
 image = "0.24.7"
 
 [dependencies.druid]
