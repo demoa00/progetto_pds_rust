@@ -1,7 +1,6 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
-use chrono::Local;
 use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
@@ -30,57 +29,14 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             )
             .entry(
                 MenuItem::new("Save")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
-                        if data.get_buf_save().is_empty() {
-                            MessageDialog::new()
-                                .set_title("Error in saving image")
-                                .set_text("Do first a screenshot!")
-                                .set_type(native_dialog::MessageType::Warning)
-                                .show_alert()
-                                .unwrap();
-                            return;
-                        }
-                        gui_save_img(data);
-                    })
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value(Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
-                        let img = data.get_buf_save();
-
-                        if img.is_empty() {
-                            MessageDialog::new()
-                                .set_title("Error in saving image")
-                                .set_text("Do first a screenshot!")
-                                .set_type(native_dialog::MessageType::Warning)
-                                .show_alert()
-                                .unwrap();
-
-                            return;
-                        }
-
-                        let default_file_name =
-                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
-
-                        let data_clone = data.clone();
-                        thread::spawn(move || {
-                            match FileDialog::new()
-                                .set_filename(&default_file_name)
-                                .set_location(&data_clone.get_save_path())
-                                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
-                                .add_filter("PNG", &["png"])
-                                .add_filter("GIF", &["gif"]) //le gif non vanno
-                                .show_save_single_file()
-                                .unwrap()
-                            {
-                                Some(path) => img.save(path).expect("Error in saving image!"),
-                                None => {}
-                            }
-                        });
-                    })
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value(Action::SaveAs)
                     }),
@@ -123,15 +79,20 @@ impl View {
                         ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |ctx, data: &mut AppState, _| {
-                        gui_screenshot(data, ctx, ScreenshotMode::Fullscreen)
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                     },
                 );
 
                 let button_new_screenshot_cropped = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        gui_screenshot(data, ctx, ScreenshotMode::Cropped)
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped)
                     },
+                );
+
+                let button_save = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| data.save_img(),
                 );
 
                 let button_options = TransparentButton::with_bg(
@@ -147,6 +108,7 @@ impl View {
                     .must_fill_main_axis(false);
                 let right_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                    .with_flex_child(button_save, 1.0)
                     .with_flex_child(button_options, 1.0);
                 let split = Split::columns(left_part, right_part).bar_size(0.0);
                 FlexMod::column(true)
@@ -320,19 +282,7 @@ impl MenuOption {
     }
 }
 
-fn gui_save_img(data: &AppState) {
-    let mut path = data.get_save_path();
-    let extension = data.get_extension();
-    let img = data.get_buf_save();
-    thread::spawn(move || {
-        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
-        path.push(default_file_name);
-        path.set_extension(extension);
-        img.save(path).expect("Error in saving image!");
-    });
-}
-
-fn gui_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
+fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
     win.set_window_state(druid::WindowState::Minimized);
     data.set_screenshot_mode(mode);

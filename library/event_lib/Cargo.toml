@@ -11,6 +11,7 @@ shortcut_lib = { path = "../shortcut_lib" }
 
 chrono = "0.4.26"
 image = "0.24.7"
+native-dialog = "0.6.4"
 
 [dependencies.druid]
 version = "0.8.3"

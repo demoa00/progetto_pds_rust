@@ -1,3 +1,4 @@
+use chrono::Local;
 use druid::commands;
 use druid::widget::Flex;
 use druid::Color;
@@ -9,8 +10,11 @@ use druid::{
     image::{ImageBuffer, Rgba},
     AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens,
 };
+use native_dialog::FileDialog;
+use native_dialog::MessageDialog;
 use screenshot_lib::*;
 use shortcut_lib::*;
+use std::thread;
 use std::{path::PathBuf, str::FromStr};
 use EditState::*;
 
@@ -156,6 +160,56 @@ impl AppState {
 
     pub fn set_screen_index(&mut self, screen_index: usize) {
         self.options.screen_index = screen_index;
+    }
+
+    pub fn save_img(&self) {
+        let mut path = self.get_save_path();
+        let extension = self.get_extension();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
+            path.push(default_file_name);
+            path.set_extension(extension);
+            img.save(path).expect("Error in saving image!");
+        });
+    }
+
+    pub fn save_img_as(&self) {
+        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+        let path = self.get_save_path();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            match FileDialog::new()
+                .set_filename(&default_file_name)
+                .set_location(&path)
+                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
+                .add_filter("PNG", &["png"])
+                .add_filter("GIF", &["gif"]) //le gif non vanno
+                .show_save_single_file()
+                .unwrap()
+            {
+                Some(path) => img.save(path).expect("Error in saving image!"),
+                Option::<PathBuf>::None => {}
+            }
+        });
     }
 }
 
