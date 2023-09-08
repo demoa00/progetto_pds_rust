@@ -204,8 +204,6 @@ impl AppDelegate<AppState> for EventHandler {
                         data.set_edit_state(MouseDetecting);
                     }
                 }
-                // Perchè?
-                data.get_shortcuts().reset();
 
                 return Some(event);
             }
@@ -217,8 +215,6 @@ impl AppDelegate<AppState> for EventHandler {
                     );
 
                     self.start_point = start_point;
-
-                    println!("{:?}", self.start_point);
                 }
 
                 return Some(event);
@@ -232,11 +228,9 @@ impl AppDelegate<AppState> for EventHandler {
 
                     self.end_point = end_point;
 
-                    println!("{:?}", self.end_point);
-
                     data.set_buf(
                         take_screenshot_area(0, self.start_point, self.end_point).unwrap(),
-                    ); //da cambiare
+                    );
 
                     data.set_edit_state(None);
 

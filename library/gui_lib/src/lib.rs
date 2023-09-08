@@ -40,7 +40,8 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                                 .unwrap();
                             return;
                         }
-                        gui_save_img(data);
+
+                        gui_save_img(data, Action::Save);
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value(Action::Save)
@@ -49,9 +50,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save as...")
                     .on_activate(|_ctx, data: &mut AppState, _| {
-                        let img = data.get_buf_save();
-
-                        if img.is_empty() {
+                        if data.get_buf_save().is_empty() {
                             MessageDialog::new()
                                 .set_title("Error in saving image")
                                 .set_text("Do first a screenshot!")
@@ -62,24 +61,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                             return;
                         }
 
-                        let default_file_name =
-                            format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
-
-                        let data_clone = data.clone();
-                        thread::spawn(move || {
-                            match FileDialog::new()
-                                .set_filename(&default_file_name)
-                                .set_location(&data_clone.get_save_path())
-                                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
-                                .add_filter("PNG", &["png"])
-                                .add_filter("GIF", &["gif"]) //le gif non vanno
-                                .show_save_single_file()
-                                .unwrap()
-                            {
-                                Some(path) => img.save(path).expect("Error in saving image!"),
-                                None => {}
-                            }
-                        });
+                        gui_save_img(data, Action::SaveAs);
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value(Action::SaveAs)
@@ -320,20 +302,44 @@ impl MenuOption {
     }
 }
 
-fn gui_save_img(data: &AppState) {
+fn gui_save_img(data: &AppState, shortcut: Action) {
+    let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
     let mut path = data.get_save_path();
-    let extension = data.get_extension();
     let img = data.get_buf_save();
-    thread::spawn(move || {
-        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
-        path.push(default_file_name);
-        path.set_extension(extension);
-        img.save(path).expect("Error in saving image!");
-    });
+
+    match shortcut {
+        Action::Save => {
+            let extension = data.get_extension();
+
+            thread::spawn(move || {
+                path.push(default_file_name);
+                path.set_extension(extension);
+                img.save(path).expect("Error in saving image!");
+            });
+        }
+        Action::SaveAs => {
+            thread::spawn(move || {
+                match FileDialog::new()
+                    .set_filename(&default_file_name)
+                    .set_location(&path)
+                    .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
+                    .add_filter("PNG", &["png"])
+                    .add_filter("GIF", &["gif"])
+                    .show_save_single_file()
+                    .unwrap()
+                {
+                    Some(path) => img.save(path).expect("Error in saving image!"),
+                    None => {}
+                }
+            });
+        }
+        _ => {}
+    }
 }
 
 fn gui_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
+
     win.set_window_state(druid::WindowState::Minimized);
     data.set_screenshot_mode(mode);
     ctx.request_timer(Duration::from_millis(data.get_timer() + 500));
