@@ -271,8 +271,8 @@ impl Shortcuts {
         return Shortcuts::new();
     }
 
-    pub fn extract_value(&self, key: &Action) -> Option<HotKey> {
-        let shortcut = match self.shortcuts.get(key) {
+    pub fn extract_value_for_menu(&self, key: Action) -> Option<HotKey> {
+        let shortcut = match self.shortcuts.get(&key) {
             Some(s) => s.clone(),
             None => panic!("Unable to extract HotKey, Action does not exist"),
         };
@@ -283,6 +283,15 @@ impl Shortcuts {
         };
 
         return Some(HotKey::new(sysmod, shortcut.character.to_string().as_str()));
+    }
+
+    pub fn extract_value_for_gui(&self, key: Action) -> Option<Shortcut> {
+        let shortcut = match self.shortcuts.get(&key) {
+            Some(s) => s.clone(),
+            None => panic!("Unable to extract HotKey, Action does not exist"),
+        };
+
+        return Some(shortcut);
     }
 
     pub fn update_value(&mut self, key: Action, new_value: (SysMods, char)) {

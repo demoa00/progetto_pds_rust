@@ -22,21 +22,22 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                 MenuItem::new("New screenshot")
                     .on_activate(|_ctx, _data: &mut AppState, _| {})
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(&Action::NewScreenshot)
+                        data.get_shortcuts()
+                            .extract_value_for_menu(Action::NewScreenshot)
                     }),
             )
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(&Action::Save)
+                        data.get_shortcuts().extract_value_for_menu(Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(&Action::SaveAs)
+                        data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
                     }),
             ),
     );

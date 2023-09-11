@@ -12,7 +12,6 @@ strum = "0.25.0"
 strum_macros = "0.25"
 toml = "0.7.6"
 
-
 [dependencies.druid]
 version = "0.8.3"
 features = ["im", "svg", "image"]
