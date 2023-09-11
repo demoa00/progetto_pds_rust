@@ -273,26 +273,58 @@ impl MenuOption {
             let action_clone = action.clone();
             shortcut_menu.add_option(
                 action.to_string(),
-                Flex::row()
-                    .with_child(ViewSwitcher::new(
-                        move |data: &AppState, _| {
-                            data.get_shortcuts()
-                                .extract_value_string(&action_clone)
-                                .unwrap()
-                        },
-                        |selector, _, _| {
-                            Box::new(Label::new(selector.clone()).with_text_color(Color::GRAY))
-                        },
-                    ))
-                    .with_child(TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        move |_, data: &mut AppState, _| {
-                            //data.set_edit_state(EditState::ShortcutEditing(action));
-                            println!("Voglio modificare {:?}", action)
-                        },
-                    )),
+                ViewSwitcher::new(
+                    move |data: &AppState, _| data.get_edit_state(),
+                    move |selector, _, _| {
+                        if let EditState::ShortcutEditing(ref action_to_edit) = selector {
+                            if &action == action_to_edit {
+                                Box::new(
+                                    Flex::column().with_child(
+                                        Label::new("Press buttons")
+                                            .with_text_color(Color::BLACK)
+                                            .padding((0.0, 15.0)),
+                                    ),
+                                )
+                            } else {
+                                Box::new(Flex::row())
+                            }
+                        } else {
+                            let act = action_clone.clone();
+                            let act2 = action_clone.clone();
+                            Box::new(
+                                Flex::row()
+                                    .with_child(ViewSwitcher::new(
+                                        move |data: &AppState, _| {
+                                            data.get_shortcuts()
+                                                .extract_value_for_gui(&act)
+                                                .unwrap()
+                                        },
+                                        |selector, _, _| {
+                                            Box::new(
+                                                Label::new(selector.to_string())
+                                                    .with_text_color(Color::GRAY),
+                                            )
+                                        },
+                                    ))
+                                    .with_child(TransparentButton::with_bg(
+                                        Image::new(
+                                            ImageBuf::from_file(format!(
+                                                "{}/edit.png",
+                                                UI_IMG_PATH
+                                            ))
+                                            .unwrap(),
+                                        ),
+                                        move |_, data: &mut AppState, _| {
+                                            data.set_edit_state(EditState::ShortcutEditing(
+                                                act2.clone(),
+                                            ));
+                                            println!("Voglio modificare {:?}", act2)
+                                        },
+                                    )),
+                            )
+                        }
+                    },
+                ),
             )
         }
 

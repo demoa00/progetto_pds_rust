@@ -1,7 +1,6 @@
 use chrono::Local;
 use druid::commands;
 use druid::widget::Controller;
-use druid::widget::ControllerHost;
 use druid::widget::Flex;
 use druid::Color;
 use druid::Command;
@@ -26,7 +25,7 @@ use EditState::*;
 
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
-    ShortcutEditing((String, String)),
+    ShortcutEditing(Action),
     PathEditing,
     MouseDetecting,
     None,
@@ -219,7 +218,7 @@ impl AppState {
 }
 
 pub struct EventHandler {
-    _keys_pressed: Vector<druid::keyboard_types::Key>,
+    keys_pressed: Vector<druid::keyboard_types::Key>,
     start_point: (i32, i32),
     end_point: (i32, i32),
 }
@@ -227,7 +226,7 @@ pub struct EventHandler {
 impl EventHandler {
     pub fn new() -> Self {
         Self {
-            _keys_pressed: Vector::new(),
+            keys_pressed: Vector::new(),
             start_point: (i32::default(), i32::default()),
             end_point: (i32::default(), i32::default()),
         }
@@ -297,8 +296,28 @@ impl AppDelegate<AppState> for EventHandler {
 
                 return Some(event);
             }
+            druid::Event::KeyDown(ref key_event) => {
+                if let EditState::ShortcutEditing(_) = data.get_edit_state() {
+                    if self.keys_pressed.contains(&key_event.key) == false {
+                        self.keys_pressed.push_back(key_event.key.clone());
+                    }
+                }
+                return Some(event);
+            }
+            druid::Event::KeyUp(_) => {
+                if let EditState::ShortcutEditing(ref _action) = data.get_edit_state() {
+                    //data.get_shortcuts().update_value(action, self.keys_pressed);
+                    println!(
+                        "Update di {:?} con il buffer {:?}",
+                        _action, self.keys_pressed
+                    );
+                    self.keys_pressed.clear();
+                    data.set_edit_state(EditState::None);
+                }
+                return Some(event);
+            }
 
-            _ => return Some(event),
+            _ => Some(event),
         }
     }
 }

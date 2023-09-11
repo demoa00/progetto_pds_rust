@@ -167,7 +167,7 @@ impl Shortcut {
         let s = self.clone();
 
         return format!(
-            "{} {}",
+            "{} + {}",
             SysMods::to_string(SysMods::from_code(s.code).unwrap()).unwrap(),
             s.character
         );
@@ -285,8 +285,8 @@ impl Shortcuts {
         return Some(HotKey::new(sysmod, shortcut.character.to_string().as_str()));
     }
 
-    pub fn extract_value_for_gui(&self, key: Action) -> Option<Shortcut> {
-        let shortcut = match self.shortcuts.get(&key) {
+    pub fn extract_value_for_gui(&self, key: &Action) -> Option<Shortcut> {
+        let shortcut = match self.shortcuts.get(key) {
             Some(s) => s.clone(),
             None => panic!("Unable to extract HotKey, Action does not exist"),
         };
@@ -336,10 +336,6 @@ impl Shortcuts {
         }
 
         return keys;
-    }
-
-    pub fn extract_value_string(&self, key: &Action) -> Option<String> {
-        Some("Alt + F4".to_string())
     }
 }
 
