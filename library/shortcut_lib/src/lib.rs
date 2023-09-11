@@ -1,5 +1,4 @@
 use directories::UserDirs;
-use druid::im::Vector;
 use druid::{keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -17,44 +16,76 @@ const CONF_SHORTCUT_FILE_NAME: &str = "shortcut_conf.toml";
 const CONF_SAVEPATH_FILE_PATH: &str = "./conf/save_path_conf.toml";
 const CONF_SAVEPATH_FILE_NAME: &str = "save_path_conf.toml";
 
-trait ToFromString {
+/// This trait is used for conversion of
+/// `SysMods` type to `String` and vice versa.
+/// This trait hold in consideration the different
+/// representation of `Ctrl` key on different OSs
+pub trait ToFromString {
+    /// Translate `SysMods` type to `String`
     fn to_string(key: SysMods) -> Option<String>;
+    /// Translate `String` to `SysMods` type
     fn from_string(key: String) -> Option<SysMods>;
 }
 
 impl ToFromString for SysMods {
+    /// Translate `SysMods` type to `String`
+    ///
+    /// Table conversion for target OS different from macos is:
+    /// - SysMods::Shift => Some(format!("Shift"))
+    /// - SysMods::Cmd => Some(format!("Ctrl"))
+    /// - SysMods::AltCmd => Some(format!("Ctrl + Alt"))
+    /// - SysMods::CmdShift => Some(format!("Ctrl + Shift"))
+    ///
+    /// Table conversion for macos is:
+    /// - SysMods::Shift => Some(format!("Shift"))
+    /// - SysMods::Cmd => Some(format!("Cmd"))
+    /// - SysMods::AltCmd => Some(format!("Cmd + Alt"))
+    /// - SysMods::CmdShift => Some(format!("Cmd + Shift"))
     fn to_string(key: SysMods) -> Option<String> {
         match key {
             SysMods::Shift => Some(format!("Shift")),
             #[cfg(not(target_os = "macos"))]
             SysMods::Cmd => Some(format!("Ctrl")),
             #[cfg(not(target_os = "macos"))]
-            SysMods::AltCmd => Some(format!("Alt + Ctrl")),
+            SysMods::AltCmd => Some(format!("Ctrl + Alt")),
             #[cfg(not(target_os = "macos"))]
             SysMods::CmdShift => Some(format!("Ctrl + Shift")),
             #[cfg(target_os = "macos")]
             SysMods::Cmd => Some(format!("Cmd")),
             #[cfg(target_os = "macos")]
-            SysMods::AltCmd => Some(format!("Alt + Cmd")),
+            SysMods::AltCmd => Some(format!("Cmd + Alt")),
             #[cfg(target_os = "macos")]
             SysMods::CmdShift => Some(format!("Cmd + Shift")),
             _ => None,
         }
     }
 
+    /// Translate `SysMods` type to `String`
+    ///
+    /// Table conversion for target OS different from macos is:
+    /// - "Shift" => Some(SysMods::Shift)
+    /// - "Ctrl" => Some(SysMods::Cmd)
+    /// - "Ctrl + Alt" => Some(SysMods::AltCmd)
+    /// - "Ctrl + Shift" => Some(SysMods::CmdShift)
+    ///
+    /// Table conversion for macos is:
+    /// - "Shift" => Some(SysMods::Shift)
+    /// - "Cmd" => Some(SysMods::Cmd)
+    /// - "Cmd + Alt" => Some(SysMods::AltCmd)
+    /// - "Cmd + Shift" => Some(SysMods::CmdShift)
     fn from_string(key: String) -> Option<SysMods> {
         match key.as_str() {
             "Shift" => Some(SysMods::Shift),
             #[cfg(not(target_os = "macos"))]
             "Ctrl" => Some(SysMods::Cmd),
             #[cfg(not(target_os = "macos"))]
-            "Alt + Ctrl" => Some(SysMods::AltCmd),
+            "Ctrl + Alt" => Some(SysMods::AltCmd),
             #[cfg(not(target_os = "macos"))]
             "Ctrl + Shift" => Some(SysMods::CmdShift),
             #[cfg(target_os = "macos")]
             "Cmd" => Some(SysMods::Cmd),
             #[cfg(target_os = "macos")]
-            "Alt + Cmd" => Some(SysMods::AltCmd),
+            "Cmd + Alt" => Some(SysMods::AltCmd),
             #[cfg(target_os = "macos")]
             "Cmd + Shift" => Some(SysMods::CmdShift),
             _ => None,
@@ -62,12 +93,30 @@ impl ToFromString for SysMods {
     }
 }
 
-trait ToSysMods {
+/// This trait is used for conversion of
+/// `Key` type to `SysMods` type.
+/// This trait hold in consideration the different
+/// representation of `Ctrl` key on different OSs
+pub trait ToSysMods {
+    /// Translate `Key` type to `SysMods` type variant
+    /// that are composed from one Key value
     fn to_sysmods(key: Key) -> Option<SysMods>;
+    /// Translate `Key` type to `SysMods` type variant
+    /// that are composed from a tuple of Key values
     fn to_sysmods_combination(key: (Key, Key)) -> Option<SysMods>;
 }
 
 impl ToSysMods for Key {
+    /// Translate `Key` type to `SysMods` type variant
+    /// that are composed from one Key value
+    ///
+    /// Table conversion for target OS different from macos is:
+    /// - Key::Shift => Some(SysMods::Shift)
+    /// - Key::Control => Some(SysMods::Cmd)
+    ///
+    /// Table conversion for macos is:
+    /// - Key::Shift => Some(SysMods::Shift)
+    /// - Key::Meta => Some(SysMods::Cmd)
     fn to_sysmods(key: Key) -> Option<SysMods> {
         match key {
             Key::Shift => Some(SysMods::Shift),
@@ -79,14 +128,24 @@ impl ToSysMods for Key {
         }
     }
 
+    /// Translate `Key` type to `SysMods` type variant
+    /// that are composed from a tuple of Key values
+    ///
+    /// Table conversion for target OS different from macos is:
+    /// - (Key::Control, Key::Alt) => Some(SysMods::AltCmd)
+    /// - (Key::Control, Key::Shift) => Some(SysMods::CmdShift)
+    ///
+    /// Table conversion for macos is:
+    /// - (Key::Meta, Key::Alt) => Some(SysMods::AltCmd)
+    /// - (Key::Meta, Key::Shift) => Some(SysMods::CmdShift)
     fn to_sysmods_combination(keys: (Key, Key)) -> Option<SysMods> {
         match keys {
             #[cfg(not(target_os = "macos"))]
-            (Key::Alt, Key::Control) => Some(SysMods::AltCmd),
+            (Key::Control, Key::Alt) => Some(SysMods::AltCmd),
             #[cfg(not(target_os = "macos"))]
             (Key::Control, Key::Shift) => Some(SysMods::CmdShift),
             #[cfg(target_os = "macos")]
-            (Key::Alt, Key::Meta) => Some(SysMods::AltCmd),
+            (Key::Meta, Key::Alt) => Some(SysMods::AltCmd),
             #[cfg(target_os = "macos")]
             (Key::Meta, Key::Shift) => Some(SysMods::CmdShift),
             _ => None,
@@ -94,12 +153,23 @@ impl ToSysMods for Key {
     }
 }
 
-trait ToFromCode {
+/// This trait is used for conversion of
+/// `SysMods` type to `usize` and vice versa
+pub trait ToFromCode {
+    /// Translate `SysMods` type to `usize`
     fn to_code(key: SysMods) -> Option<usize>;
+    /// Translate `usize` type to `SysMods`
     fn from_code(code: usize) -> Option<SysMods>;
 }
 
 impl ToFromCode for SysMods {
+    /// Translate `SysMods` type to `usize`
+    ///
+    /// The table conversion for all target OS:
+    /// - SysMods::Shift => Some(0)
+    /// - SysMods::Cmd => Some(1)
+    /// - SysMods::AltCmd => Some(2)
+    /// - SysMods::CmdShift => Some(3)
     fn to_code(key: SysMods) -> Option<usize> {
         match key {
             SysMods::Shift => Some(0),
@@ -110,6 +180,13 @@ impl ToFromCode for SysMods {
         }
     }
 
+    /// Translate `usize` type to `SysMods`
+    ///
+    /// The table conversion for all target OS:
+    /// - 0 => Some(SysMods::Shift)
+    /// - 1 => Some(SysMods::Cmd)
+    /// - 2 => Some(SysMods::AltCmd)
+    /// - 3 => Some(SysMods::CmdShift)
     fn from_code(code: usize) -> Option<SysMods> {
         match code {
             0 => Some(SysMods::Shift),
@@ -121,6 +198,13 @@ impl ToFromCode for SysMods {
     }
 }
 
+/// This enum is use for represent the different
+/// actions linked to available shortcuts
+///
+/// Shortcuts available are:
+/// - NewScreenshot
+/// - Save
+/// - SaveAs
 #[derive(
     Debug, Data, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, EnumIter, Deserialize, Serialize,
 )]
@@ -131,6 +215,12 @@ pub enum Action {
 }
 
 impl Action {
+    /// Translate `Action` type to `String`
+    ///
+    /// Table conversion is:
+    /// - Action::NewScreenshot => "New screenshot"
+    /// - Action::Save => "Save"
+    /// - Action::SaveAs => "Save as"
     pub fn to_string(&self) -> String {
         match self {
             Action::NewScreenshot => String::from_str("New screenshot").unwrap(),
@@ -139,6 +229,12 @@ impl Action {
         }
     }
 
+    /// Translate `String` type to `Action`
+    ///
+    /// Table conversion is:
+    /// - "New screenshot" => Action::NewScreenshot
+    /// - "Save" => Action::Save
+    /// - "Save as" => Action::SaveAs
     pub fn from_string(action: String) -> Self {
         match action.as_str() {
             "New screenshot" => Action::NewScreenshot,
@@ -149,6 +245,7 @@ impl Action {
     }
 }
 
+/// Data structure for represent a shortcut
 #[derive(Debug, Data, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Shortcut {
     code: usize,
@@ -163,6 +260,7 @@ impl Shortcut {
         };
     }
 
+    /// Translate `Shortcut` type to `String`
     pub fn to_string(&self) -> String {
         let s = self.clone();
 
@@ -174,13 +272,28 @@ impl Shortcut {
     }
 }
 
-#[derive(Debug, Data, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+/// This data type is used to serialize and deserialize
+/// data to/from file to save user preferences about shortcut key combination
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Shortcuts {
-    #[data(eq)]
     shortcuts: BTreeMap<Action, Shortcut>,
 }
 
+impl Data for Shortcuts {
+    fn same(&self, other: &Self) -> bool {
+        return self.shortcuts == other.shortcuts;
+    }
+}
+
 impl Shortcuts {
+    /// This function create a config file with the default
+    /// implementation of shortcuts. The location of config
+    /// file is `./conf` in `project` folder
+    ///
+    /// Table of default keys combination is:
+    /// - Action::NewScreenshot => SysMods::Cmd + 'n'
+    /// - Action::Save => SysMods::Cmd + 's'
+    /// - Action::SaveAs => SysMods::CmdShift + 's'
     fn create_toml() {
         let mut file = OpenOptions::new()
             .create(true)
@@ -190,10 +303,6 @@ impl Shortcuts {
             .expect("Unable to open shortcut_conf file");
 
         let mut new_shortcuts = Shortcuts::default();
-        let comment = "# AUTO GENERATED FILE - EDIT ONLY `code` AND `character` FIELDS\n\n# Possible value for `code`\n# Shift => 0\n# Cmd => 1\n# AltCmd => 2\n# CmdShift => 3\n\n";
-
-        file.write_all(comment.as_bytes())
-            .expect("Could not write to shortcut_conf file");
 
         new_shortcuts
             .shortcuts
@@ -214,6 +323,8 @@ impl Shortcuts {
         file.flush().expect("Could not write to shortcut_conf file");
     }
 
+    /// This function is use to retrive shortcuts from
+    /// config file
     fn from_toml() -> Self {
         let contents =
             fs::read_to_string(CONF_SHORTCUT_FILE_PATH).expect("Could not read shortcut_conf file");
@@ -266,11 +377,17 @@ impl Shortcuts {
         return Shortcuts::from_toml();
     }
 
+    /// This function reset the user preferencesù
+    /// to default implementation
     pub fn reset(self) -> Self {
         Shortcuts::create_toml();
         return Shortcuts::new();
     }
 
+    /// This function is used to extract a keys combination
+    /// for an shortcut, for dynamic update of gui menu.
+    /// The type returned (`HotKey`) is the type
+    /// used by Druid library for handle and manage shortcuts.
     pub fn extract_value_for_menu(&self, key: Action) -> Option<HotKey> {
         let shortcut = match self.shortcuts.get(&key) {
             Some(s) => s.clone(),
@@ -285,6 +402,8 @@ impl Shortcuts {
         return Some(HotKey::new(sysmod, shortcut.character.to_string().as_str()));
     }
 
+    /// This function is used to extract a `Shortcut`, for
+    /// gui label and other
     pub fn extract_value_for_gui(&self, key: Action) -> Option<Shortcut> {
         let shortcut = match self.shortcuts.get(&key) {
             Some(s) => s.clone(),
@@ -294,21 +413,30 @@ impl Shortcuts {
         return Some(shortcut);
     }
 
-    pub fn update_value(&mut self, key: Action, new_value: (SysMods, char)) {
+    /// This function allows to update a shortcut
+    /// with new user preference
+    pub fn update_value(&mut self, key: Action, new_value: (usize, char)) {
         if !self.shortcuts.contains_key(&key) {
             panic!("Unable to update shortcut, Action does not exist")
         }
 
+        //println!("{:?}", self.shortcuts); //debug only
+
         self.shortcuts.remove(&key);
 
-        self.shortcuts
-            .insert(key, Shortcut::new(new_value.0, new_value.1));
+        self.shortcuts.insert(
+            key,
+            Shortcut::new(SysMods::from_code(new_value.0).unwrap(), new_value.1),
+        );
+
+        //println!("{:?}", self.shortcuts); //debug only
 
         let toml_string = toml::to_string(&self).expect("Unable to encode data to toml format");
 
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(CONF_SHORTCUT_FILE_PATH)
             .expect("Unable to open shortcut_conf file");
 
@@ -317,35 +445,29 @@ impl Shortcuts {
 
         file.flush().expect("Could not write to shortcut_conf file");
     }
-
-    pub fn extract_actions(&self) -> Vector<Action> {
-        let mut actions = Vector::new();
-
-        for s in self.shortcuts.clone() {
-            actions.push_back(s.0);
-        }
-
-        return actions;
-    }
-
-    pub fn extract_values(&self) -> Vector<Shortcut> {
-        let mut keys = Vector::new();
-
-        for s in self.shortcuts.clone() {
-            keys.push_back(s.1);
-        }
-
-        return keys;
-    }
 }
 
-#[derive(Debug, Data, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+/// This data type is used to serialize and deserialize
+/// data to/from file to save user preference about dir destination
+/// of screenshots when are saved
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct SavePath {
-    #[data(eq)]
     save_path: PathBuf,
 }
 
+impl Data for SavePath {
+    fn same(&self, other: &Self) -> bool {
+        return self.save_path == other.save_path;
+    }
+}
+
 impl SavePath {
+    /// This function create a config file with the default
+    /// dir to save shortcuts. The location of config
+    /// file is `./conf` in `project` folder
+    ///
+    /// Default dir is the image dir of current user logged on pc
+    /// for example: `C:\Users\Student\Pictures`
     fn create_toml() {
         let user_dirs = match UserDirs::new() {
             Some(d) => d,
@@ -365,10 +487,6 @@ impl SavePath {
             .expect("Unable to open save_path_conf file");
 
         let mut new_save_path = SavePath::default();
-        let comment = "# AUTO GENERATED FILE - EDIT ONLY `save_path` FIELD\n\n";
-
-        file.write_all(comment.as_bytes())
-            .expect("Could not write to save_path_conf file");
 
         new_save_path.save_path = img_dir;
 
@@ -382,6 +500,8 @@ impl SavePath {
             .expect("Could not write to save_path_conf file");
     }
 
+    /// This function is use to retrive path from
+    /// config file
     fn from_toml() -> Self {
         let contents = fs::read_to_string(CONF_SAVEPATH_FILE_PATH)
             .expect("Could not read save_path_conf file");
@@ -424,10 +544,12 @@ impl SavePath {
         return SavePath::from_toml();
     }
 
+    /// This function return the favourite save dir path
     pub fn get_save_path(&self) -> PathBuf {
         return self.save_path.clone();
     }
 
+    /// This function update the favourite save dir path
     pub fn update_save_path(&mut self, new_save_path: PathBuf) {
         read_dir(&new_save_path).expect("Unable to find dir");
 
@@ -438,6 +560,7 @@ impl SavePath {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(CONF_SAVEPATH_FILE_PATH)
             .expect("Unable to open save_path_conf file");
 
@@ -448,6 +571,7 @@ impl SavePath {
             .expect("Could not write to save_path_conf file");
     }
 
+    /// This function translate `SavePath` type to `String`
     pub fn to_string(&self) -> String {
         return String::from_str(self.save_path.clone().to_str().unwrap()).unwrap();
     }
