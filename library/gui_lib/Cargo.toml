@@ -13,7 +13,6 @@ shortcut_lib = { path = "../shortcut_lib" }
 screenshot_lib ={ path = "../screenshot_lib" }
 
 strum = "0.25.0"
-native-dialog = "0.6.4"
 directories = "5.0.1"
 
 [dependencies.druid]

@@ -1,8 +1,13 @@
 use chrono::Local;
 use druid::commands;
+use druid::widget::Controller;
+use druid::widget::ControllerHost;
 use druid::widget::Flex;
 use druid::Color;
 use druid::Command;
+use druid::Event;
+use druid::EventCtx;
+use druid::Widget;
 use druid::WidgetExt;
 use druid::WindowDesc;
 use druid::{
@@ -15,6 +20,7 @@ use native_dialog::MessageDialog;
 use screenshot_lib::*;
 use shortcut_lib::*;
 use std::thread;
+use std::time::Duration;
 use std::{path::PathBuf, str::FromStr};
 use EditState::*;
 
@@ -125,7 +131,6 @@ impl AppState {
     }
 
     pub fn set_view_state(&mut self, value: ViewState) {
-        // Al cambio di view si interrompe la ricezione di eventi
         self.edit_state = None;
         self.view_state = value;
     }
@@ -246,20 +251,15 @@ impl AppDelegate<AppState> for EventHandler {
                     }
                     ScreenshotMode::Cropped => {
                         ctx.new_window(
-                            WindowDesc::new(
-                                Flex::<AppState>::row()
-                                    .background(Color::rgba(177.0, 171.0, 171.0, 0.389)),
-                            )
-                            .show_titlebar(false)
-                            .transparent(true)
-                            .set_window_state(druid::WindowState::Maximized)
-                            .set_always_on_top(true),
+                            WindowDesc::new(build_highlighter())
+                                .show_titlebar(false)
+                                .transparent(true)
+                                .set_window_state(druid::WindowState::Maximized)
+                                .set_always_on_top(true),
                         );
                         data.set_edit_state(MouseDetecting);
                     }
                 }
-                // Perchè?
-                data.get_shortcuts().reset();
 
                 return Some(event);
             }
@@ -271,8 +271,6 @@ impl AppDelegate<AppState> for EventHandler {
                     );
 
                     self.start_point = start_point;
-
-                    println!("{:?}", self.start_point);
                 }
 
                 return Some(event);
@@ -286,11 +284,9 @@ impl AppDelegate<AppState> for EventHandler {
 
                     self.end_point = end_point;
 
-                    println!("{:?}", self.end_point);
-
                     data.set_buf(
                         take_screenshot_area(0, self.start_point, self.end_point).unwrap(),
-                    ); //da cambiare
+                    );
 
                     data.set_edit_state(None);
 
@@ -299,7 +295,32 @@ impl AppDelegate<AppState> for EventHandler {
 
                 return Some(event);
             }
+
             _ => return Some(event),
         }
+    }
+}
+
+fn build_highlighter() -> impl Widget<AppState> {
+    let e = Ex::new();
+    Flex::<AppState>::row()
+        .background(Color::rgba(177.0, 171.0, 171.0, 0.389))
+        .controller(e)
+}
+
+struct Ex;
+
+impl Ex {
+    fn new() -> Ex {
+        Ex
+    }
+}
+
+impl<T, W: Widget<T>> Controller<T, W> for Ex {
+    fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
+        if let Event::MouseUp(_) = event {
+            ctx.request_timer(Duration::from_millis(500));
+        }
+        child.event(ctx, event, data, env)
     }
 }

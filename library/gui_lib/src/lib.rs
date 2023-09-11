@@ -5,9 +5,7 @@ use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
-use native_dialog::{FileDialog, MessageDialog};
 use shortcut_lib::*;
-use std::thread;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 
@@ -24,21 +22,21 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                 MenuItem::new("New screenshot")
                     .on_activate(|_ctx, _data: &mut AppState, _| {})
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(Action::NewScreenshot)
+                        data.get_shortcuts().extract_value(&Action::NewScreenshot)
                     }),
             )
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(Action::Save)
+                        data.get_shortcuts().extract_value(&Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
-                        data.get_shortcuts().extract_value(Action::SaveAs)
+                        data.get_shortcuts().extract_value(&Action::SaveAs)
                     }),
             ),
     );
@@ -271,11 +269,30 @@ impl MenuOption {
     fn build_shortcut_menu_widget() -> impl Widget<AppState> {
         let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
         for action in Action::iter() {
+            let action_clone = action.clone();
             shortcut_menu.add_option(
-                        action.to_string(),
-                        Flex::row()
-                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
-                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| {/*data.set_edit_state(EditState::ShortcutEditing(data.get_shortcut()));*/ println!("Voglio modificare {:?}", action)})))
+                action.to_string(),
+                Flex::row()
+                    .with_child(ViewSwitcher::new(
+                        move |data: &AppState, _| {
+                            data.get_shortcuts()
+                                .extract_value_string(&action_clone)
+                                .unwrap()
+                        },
+                        |selector, _, _| {
+                            Box::new(Label::new(selector.clone()).with_text_color(Color::GRAY))
+                        },
+                    ))
+                    .with_child(TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        move |_, data: &mut AppState, _| {
+                            //data.set_edit_state(EditState::ShortcutEditing(action));
+                            println!("Voglio modificare {:?}", action)
+                        },
+                    )),
+            )
         }
 
         shortcut_menu.build()
