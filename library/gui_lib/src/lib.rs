@@ -84,7 +84,7 @@ impl View {
                 let button_new_screenshot_cropped = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped)
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                     },
                 );
 

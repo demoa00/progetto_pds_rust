@@ -41,7 +41,7 @@ pub enum ViewState {
 #[derive(Clone, Debug, PartialEq, Eq, Data)]
 pub enum ScreenshotMode {
     Fullscreen,
-    Cropped,
+    Cropped(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Data)]
@@ -249,15 +249,23 @@ impl AppDelegate<AppState> for EventHandler {
                     ScreenshotMode::Fullscreen => {
                         data.set_buf(take_screenshot(data.get_screen_index()).unwrap())
                     }
-                    ScreenshotMode::Cropped => {
-                        ctx.new_window(
-                            WindowDesc::new(build_highlighter())
-                                .show_titlebar(false)
-                                .transparent(true)
-                                .set_window_state(druid::WindowState::Maximized)
-                                .set_always_on_top(true),
-                        );
-                        data.set_edit_state(MouseDetecting);
+                    ScreenshotMode::Cropped(ready) => {
+                        if ready {
+                            data.set_buf(
+                                take_screenshot_area(0, self.start_point, self.end_point).unwrap(),
+                            );
+                            data.set_edit_state(None);
+                            ctx.submit_command(Command::new(commands::CLOSE_WINDOW, (), window_id));
+                        } else {
+                            ctx.new_window(
+                                WindowDesc::new(build_highlighter())
+                                    .show_titlebar(false)
+                                    .transparent(true)
+                                    .set_window_state(druid::WindowState::Maximized)
+                                    .set_always_on_top(true),
+                            );
+                            data.set_edit_state(MouseDetecting);
+                        }
                     }
                 }
 
@@ -284,13 +292,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                     self.end_point = end_point;
 
-                    data.set_buf(
-                        take_screenshot_area(0, self.start_point, self.end_point).unwrap(),
-                    );
-
-                    data.set_edit_state(None);
-
-                    ctx.submit_command(Command::new(commands::CLOSE_WINDOW, (), window_id));
+                    data.set_screenshot_mode(ScreenshotMode::Cropped(true));
                 }
 
                 return Some(event);
@@ -302,24 +304,26 @@ impl AppDelegate<AppState> for EventHandler {
 }
 
 fn build_highlighter() -> impl Widget<AppState> {
-    let e = Ex::new();
+    let timer_sender = TimerSender::new();
     Flex::<AppState>::row()
         .background(Color::rgba(177.0, 171.0, 171.0, 0.389))
-        .controller(e)
+        .controller(timer_sender)
 }
 
-struct Ex;
+struct TimerSender;
 
-impl Ex {
-    fn new() -> Ex {
-        Ex
+impl TimerSender {
+    fn new() -> TimerSender {
+        TimerSender
     }
 }
 
-impl<T, W: Widget<T>> Controller<T, W> for Ex {
+impl<T, W: Widget<T>> Controller<T, W> for TimerSender {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
         if let Event::MouseUp(_) = event {
             ctx.request_timer(Duration::from_millis(500));
+            let mut win = ctx.window().clone();
+            win.set_window_state(druid::WindowState::Minimized);
         }
         child.event(ctx, event, data, env)
     }
