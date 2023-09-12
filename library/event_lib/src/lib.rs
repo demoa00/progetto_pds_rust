@@ -269,13 +269,20 @@ impl AppDelegate<AppState> for EventHandler {
                 return Some(event);
             }
             druid::Event::KeyDown(ref key_event) => {
+                //questo if è solo per debug e testing 
                 if key_event.key == Key::Character("m".to_string()) {
                     data.set_edit_state(EditState::ShortcutEditing(Action::NewScreenshot));
                 };
 
                 match data.get_edit_state() {
+                    //gestisco gli eventi sulla tastiera solo nel momento in cui
+                    //l'utente intende modificare una shortcut
                     ShortcutEditing(action) => {
+                        //si carica il buffer di Key solo se la combinazione scelta
+                        //è ancora non valida
                         if self.valid_shortcut == false {
+                            //come prima scelta dei tasti è possibile inserire solamente
+                            //Ctrl o Cmd e Shift
                             if self.keys_pressed.len() == 0 {
                                 match key_event.key {
                                     #[cfg(not(target_os = "macos"))]
@@ -286,6 +293,7 @@ impl AppDelegate<AppState> for EventHandler {
                                     _ => {}
                                 }
                             } else if self.keys_pressed.len() == 1 {
+                                //come seconda scelta si possono utilizzare Shift e Alt (questo solo se in prima posizione c'è un Ctrl o Cmd)
                                 if self.keys_pressed[0] != key_event.key {
                                     if key_event.key == Key::Control
                                         && self.keys_pressed[0] == Key::Shift
@@ -293,15 +301,11 @@ impl AppDelegate<AppState> for EventHandler {
                                         self.keys_pressed[0] = Key::Control;
                                     } else {
                                         match key_event.key {
-                                            #[cfg(not(target_os = "macos"))]
-                                            Key::Control => {
-                                                self.keys_pressed.push_back(Key::Control)
-                                            }
-                                            #[cfg(target_os = "macos")]
-                                            Key::Meta => self.keys_pressed.push_back(Key::Meta),
                                             Key::Shift => self.keys_pressed.push_back(Key::Shift),
                                             Key::Alt => {
-                                                if self.keys_pressed[0] == Key::Control {
+                                                if (self.keys_pressed[0] == Key::Control)
+                                                    || (self.keys_pressed[0] == Key::Meta)
+                                                {
                                                     self.keys_pressed.push_back(Key::Alt);
                                                 }
                                             }
@@ -313,7 +317,7 @@ impl AppDelegate<AppState> for EventHandler {
                                         }
                                     }
                                 }
-                            } else {
+                            } else { //se si arriva alla terza posizione nel buffer sarà possiblile inserire solamente un char
                                 match key_event.key.clone() {
                                     Key::Character(_) => {
                                         self.keys_pressed.push_back(key_event.key.clone());
@@ -323,6 +327,7 @@ impl AppDelegate<AppState> for EventHandler {
                                 }
                             }
 
+                            //per ora se la shortcut è valida si gestisce qui l'update della mappa e del file di config
                             if self.valid_shortcut {
                                 if self.keys_pressed.len() == 2 {
                                     let mut ch: Vec<char> =
@@ -364,6 +369,8 @@ impl AppDelegate<AppState> for EventHandler {
 
                             //println!("{:?}", self.keys_pressed); //debug only
                         } else {
+                            //si entra qui nel caso in cui la shortcut inserita è valida ma si continua ad editarla
+                            //perciò viene ripulito il buffer e si ricomincia da capo l'inserimento
                             self.keys_pressed = Vector::new();
                             self.valid_shortcut = false;
                         }
