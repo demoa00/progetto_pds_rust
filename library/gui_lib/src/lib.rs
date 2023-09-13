@@ -20,7 +20,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
         Menu::new(LocalizedString::new("common-menu-file-menu"))
             .entry(
                 MenuItem::new("New screenshot")
-                    .on_activate(|_ctx, _data: &mut AppState, _| {})
+                    .on_activate(|_ctx, _data: &mut AppState, _| println!("VAFFANCULO!!!"))
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts()
                             .extract_value_for_menu(Action::NewScreenshot)
@@ -98,18 +98,25 @@ impl View {
                     Image::new(
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                     ),
-                    |_, data: &mut AppState, _| data.set_view_state(ViewState::MenuView),
+                    |_, data: &mut AppState, _| {
+                        //data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
+                        // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
+                        data.set_view_state(ViewState::MenuView);
+                    },
                 );
                 let left_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
                     .with_flex_child(button_new_screenshot_full, 1.0)
                     .with_flex_child(button_new_screenshot_cropped, 1.0)
                     .must_fill_main_axis(false);
+
                 let right_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::End)
                     .with_flex_child(button_save, 1.0)
                     .with_flex_child(button_options, 1.0);
+
                 let split = Split::columns(left_part, right_part).bar_size(0.0);
+
                 FlexMod::column(true)
                     .with_child(split)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
@@ -119,6 +126,7 @@ impl View {
                     Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
+
                 FlexMod::row(false)
                     .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::End)
                     .must_fill_main_axis(true)
@@ -140,6 +148,7 @@ impl View {
                         |_, data, _| Box::new(Image::new(data.get_buf_view())),
                     ),
                 );
+
                 FlexMod::column(true)
                     .with_child(screeshot_viewer)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
@@ -191,6 +200,7 @@ impl MenuOption {
         )
         .bar_size(0.0)
         .split_point(0.4);
+
         self.options.push(Box::new(option));
     }
 
@@ -203,6 +213,7 @@ impl MenuOption {
                 .padding((40.0, 15.0)),
         );
         let mut options = Flex::column();
+
         for option in self.options {
             options.add_child(option.padding((0.0, 0.0)));
         }
@@ -212,6 +223,7 @@ impl MenuOption {
 
     fn build_path_menu_widget() -> impl Widget<AppState> {
         let mut path_menu = MenuOption::new("Saving".to_string());
+
         path_menu.add_option(
             "Path".to_string(),
             Flex::row()
@@ -271,6 +283,7 @@ impl MenuOption {
 
     fn build_shortcut_menu_widget() -> impl Widget<AppState> {
         let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
+
         for action in Action::iter() {
             let action_clone = action.clone();
             shortcut_menu.add_option(
@@ -355,5 +368,8 @@ fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: 
     let mut win = ctx.window().clone();
     win.set_window_state(druid::WindowState::Minimized);
     data.set_screenshot_mode(mode);
-    ctx.request_timer(Duration::from_millis(data.get_timer() + 500));
+
+    let token = ctx.request_timer(Duration::from_millis(data.get_timer() + 500));
+
+    data.set_screenshot_token(token.into_raw());
 }
