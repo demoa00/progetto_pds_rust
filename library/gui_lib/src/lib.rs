@@ -1,10 +1,12 @@
 mod button_mod;
 mod flex_mod;
+mod image_mod;
 use button_mod::druid_mod::*;
 use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
+use image_mod::druid_mod::*;
 use shortcut_lib::*;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -20,7 +22,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
         Menu::new(LocalizedString::new("common-menu-file-menu"))
             .entry(
                 MenuItem::new("New screenshot")
-                    .on_activate(|_ctx, _data: &mut AppState, _| println!("VAFFANCULO!!!"))
+                    .on_activate(|_ctx, _data: &mut AppState, _| println!("!!!"))
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts()
                             .extract_value_for_menu(Action::NewScreenshot)
@@ -78,7 +80,6 @@ impl View {
                         ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |ctx, data: &mut AppState, _| {
-                        data.reset_img();
                         prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                     },
                 );
@@ -86,7 +87,6 @@ impl View {
                 let button_new_screenshot_cropped = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        data.reset_img();
                         prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                     },
                 );
@@ -101,8 +101,7 @@ impl View {
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |_, data: &mut AppState, _| {
-                        data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
-                                          // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
+                        data.reset_img();
                         data.set_view_state(ViewState::MenuView);
                     },
                 );
@@ -147,7 +146,7 @@ impl View {
                     (30.0, 30.0),
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
-                        |_, data, _| Box::new(Image::new(data.get_buf_view())),
+                        |_, data, _| Box::new(ImageMod::new(data.get_buf_view())),
                     ),
                 );
 
@@ -374,9 +373,10 @@ impl MenuOption {
 fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
     win.set_window_state(druid::WindowState::Minimized);
+
+    data.reset_img();
     data.set_screenshot_mode(mode);
 
-    let token = ctx.request_timer(Duration::from_millis(data.get_timer() + 500));
-
+    let token = ctx.request_timer(Duration::from_millis(data.get_timer() as u64 + 500));
     data.set_screenshot_token(token.into_raw());
 }

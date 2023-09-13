@@ -165,12 +165,12 @@ impl AppState {
         return self.screenshot_mode.1.clone();
     }
 
-    pub fn get_timer(&self) -> u64 {
-        self.options.timer
+    pub fn get_timer(&self) -> f64 {
+        self.timer
     }
 
-    pub fn set_timer(&mut self, timer: u64) {
-        self.options.timer = timer;
+    pub fn set_timer(&mut self, timer: f64) {
+        self.timer = timer;
     }
 
     pub fn get_screen_index(&self) -> usize {

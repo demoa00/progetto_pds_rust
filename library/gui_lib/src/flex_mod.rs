@@ -924,7 +924,6 @@ pub mod druid_mod {
             };
 
             ctx.set_baseline_offset(baseline_offset);
-
             my_size
         }
 
