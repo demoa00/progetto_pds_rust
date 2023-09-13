@@ -1,4 +1,5 @@
 use directories::UserDirs;
+use druid::im::Vector;
 use druid::{keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -260,12 +261,69 @@ impl Shortcut {
         };
     }
 
+    pub fn get_value(&self) -> (usize, char) {
+        return (self.code, self.character);
+    }
+
+    /// This function verify if a new combination of keys is valid
+    /// for update an existing one
+    pub fn validation_value(new_key_combination: Vector<Key>) -> Option<(usize, char)> {
+        for k in new_key_combination.iter().enumerate() {
+            match k.0 {
+                0 => match k.1 {
+                    Key::Control => continue,
+                    Key::Shift => continue,
+                    _ => {
+                        return Option::None;
+                    }
+                },
+                1 => match k.1 {
+                    Key::Shift => continue,
+                    Key::Alt => continue,
+                    Key::Character(s) => {
+                        let code = SysMods::to_code(
+                            Key::to_sysmods(new_key_combination[0].clone()).unwrap(),
+                        )
+                        .unwrap();
+                        let char = s.chars().collect::<Vec<char>>()[0];
+
+                        return Some((code, char));
+                    }
+                    _ => {
+                        return Option::None;
+                    }
+                },
+                2 => match k.1 {
+                    Key::Character(s) => {
+                        let code = SysMods::to_code(
+                            Key::to_sysmods_combination((
+                                new_key_combination[0].to_owned(),
+                                new_key_combination[1].to_owned(),
+                            ))
+                            .unwrap(),
+                        )
+                        .unwrap();
+                        let char = s.chars().collect::<Vec<char>>()[0];
+
+                        return Some((code, char));
+                    }
+                    _ => {
+                        return Option::None;
+                    }
+                },
+                _ => {}
+            }
+        }
+
+        return Option::None;
+    }
+
     /// Translate `Shortcut` type to `String`
     pub fn to_string(&self) -> String {
         let s = self.clone();
 
         return format!(
-            "{} {}",
+            "{} + {}",
             SysMods::to_string(SysMods::from_code(s.code).unwrap()).unwrap(),
             s.character
         );
@@ -404,8 +462,8 @@ impl Shortcuts {
 
     /// This function is used to extract a `Shortcut`, for
     /// gui label and other
-    pub fn extract_value_for_gui(&self, key: Action) -> Option<Shortcut> {
-        let shortcut = match self.shortcuts.get(&key) {
+    pub fn extract_value_for_gui(&self, key: &Action) -> Option<Shortcut> {
+        let shortcut = match self.shortcuts.get(key) {
             Some(s) => s.clone(),
             None => panic!("Unable to extract HotKey, Action does not exist"),
         };
@@ -415,12 +473,32 @@ impl Shortcuts {
 
     /// This function allows to update a shortcut
     /// with new user preference
-    pub fn update_value(&mut self, key: Action, new_value: (usize, char)) {
+    pub fn update_value(
+        &mut self,
+        key: Action,
+        new_key_combination: Vector<Key>,
+    ) -> Result<(), String> {
         if !self.shortcuts.contains_key(&key) {
-            panic!("Unable to update shortcut, Action does not exist")
+            panic!("Unable to find specified shortcut");
         }
 
-        //println!("{:?}", self.shortcuts); //debug only
+        let new_value: (usize, char) = match Shortcut::validation_value(new_key_combination) {
+            Some(v) => v,
+            None => {
+                return Err(format!("Combination of keys is not valid!"));
+            }
+        };
+
+        let mut used = false;
+        self.shortcuts.iter().for_each(|k| {
+            if k.1.get_value() == new_value {
+                used = true;
+            }
+        });
+
+        if used {
+            return Err(format!("Combination of keys is already used!"));
+        }
 
         self.shortcuts.remove(&key);
 
@@ -428,8 +506,6 @@ impl Shortcuts {
             key,
             Shortcut::new(SysMods::from_code(new_value.0).unwrap(), new_value.1),
         );
-
-        //println!("{:?}", self.shortcuts); //debug only
 
         let toml_string = toml::to_string(&self).expect("Unable to encode data to toml format");
 
@@ -444,6 +520,8 @@ impl Shortcuts {
             .expect("Could not write to shortcut_conf file");
 
         file.flush().expect("Could not write to shortcut_conf file");
+
+        return Ok(());
     }
 }
 

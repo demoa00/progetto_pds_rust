@@ -1,14 +1,11 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
-use chrono::Local;
-use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
+use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
-use native_dialog::{FileDialog, MessageDialog};
 use shortcut_lib::*;
-use std::thread;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 
@@ -31,43 +28,22 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             )
             .entry(
                 MenuItem::new("Save")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
-                        if data.get_buf_save().is_empty() {
-                            MessageDialog::new()
-                                .set_title("Error in saving image")
-                                .set_text("Do first a screenshot!")
-                                .set_type(native_dialog::MessageType::Warning)
-                                .show_alert()
-                                .unwrap();
-                            return;
-                        }
-
-                        gui_save_img(data, Action::Save);
-                    })
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
-                        if data.get_buf_save().is_empty() {
-                            MessageDialog::new()
-                                .set_title("Error in saving image")
-                                .set_text("Do first a screenshot!")
-                                .set_type(native_dialog::MessageType::Warning)
-                                .show_alert()
-                                .unwrap();
-
-                            return;
-                        }
-
-                        gui_save_img(data, Action::SaveAs);
-                    })
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
                     }),
-            ),
+            )
+            .enabled_if(|data: &AppState, _| match data.get_edit_state() {
+                EditState::ShortcutEditing(_) => false,
+                _ => true,
+            }),
     );
 
     return base;
@@ -106,15 +82,22 @@ impl View {
                         ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |ctx, data: &mut AppState, _| {
-                        gui_screenshot(data, ctx, ScreenshotMode::Fullscreen)
+                        data.reset_img();
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                     },
                 );
 
                 let button_new_screenshot_cropped = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
-                        gui_screenshot(data, ctx, ScreenshotMode::Cropped)
+                        data.reset_img();
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                     },
+                );
+
+                let button_save = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| data.save_img(),
                 );
 
                 let button_options = TransparentButton::with_bg(
@@ -122,8 +105,8 @@ impl View {
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |_, data: &mut AppState, _| {
-                        //data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
-                        // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
+                        data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
+                                          // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
                         data.set_view_state(ViewState::MenuView);
                     },
                 );
@@ -135,6 +118,7 @@ impl View {
 
                 let right_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                    .with_flex_child(button_save, 1.0)
                     .with_flex_child(button_options, 1.0);
 
                 let split = Split::columns(left_part, right_part).bar_size(0.0);
@@ -181,12 +165,18 @@ impl View {
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
-                let menu_options = Flex::column()
-                    .with_child(shortcut_menu)
-                    .with_child(path_menu);
+                let timer_menu = MenuOption::build_timer_menu();
+                let menu_options = Scroll::new(
+                    Flex::column()
+                        .with_child(shortcut_menu)
+                        .with_child(path_menu)
+                        .with_child(timer_menu),
+                )
+                .vertical()
+                .fix_height(400.0);
 
                 FlexMod::column(false)
-                    .with_child(menu_options)
+                    .with_flex_child(menu_options, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
                     .center()
                     .background(BOTTOM_PAGE_COLOR)
@@ -306,55 +296,88 @@ impl MenuOption {
         let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
 
         for action in Action::iter() {
+            let action_clone = action.clone();
             shortcut_menu.add_option(
-                        action.to_string(),
-                        Flex::row()
-                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
-                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| {/*data.set_edit_state(EditState::ShortcutEditing(data.get_shortcut()));*/ println!("Voglio modificare {:?}", action)})))
+                action.to_string(),
+                ViewSwitcher::new(
+                    move |data: &AppState, _| data.get_edit_state(),
+                    move |selector, _, _| {
+                        if let EditState::ShortcutEditing(ref action_to_edit) = selector {
+                            if &action == action_to_edit {
+                                Box::new(
+                                    Flex::column().with_child(
+                                        TextBox::new()
+                                            .with_placeholder("Press buttons")
+                                            .lens(AppState::text_buffer)
+                                            .disabled_if(|_, _| true),
+                                    ),
+                                )
+                            } else {
+                                Box::new(Flex::row())
+                            }
+                        } else {
+                            let act = action_clone.clone();
+                            let act2 = action_clone.clone();
+                            Box::new(
+                                Flex::row()
+                                    .with_child(ViewSwitcher::new(
+                                        move |data: &AppState, _| {
+                                            data.get_shortcuts()
+                                                .extract_value_for_gui(&act)
+                                                .unwrap()
+                                        },
+                                        |selector, _, _| {
+                                            Box::new(
+                                                Label::new(selector.to_string())
+                                                    .with_text_color(Color::GRAY),
+                                            )
+                                        },
+                                    ))
+                                    .with_child(TransparentButton::with_bg(
+                                        Image::new(
+                                            ImageBuf::from_file(format!(
+                                                "{}/edit.png",
+                                                UI_IMG_PATH
+                                            ))
+                                            .unwrap(),
+                                        ),
+                                        move |_, data: &mut AppState, _| {
+                                            data.set_edit_state(EditState::ShortcutEditing(
+                                                act2.clone(),
+                                            ));
+                                            println!("Voglio modificare {:?}", act2)
+                                        },
+                                    )),
+                            )
+                        }
+                    },
+                ),
+            )
         }
-
         shortcut_menu.build()
     }
-}
 
-fn gui_save_img(data: &AppState, shortcut: Action) {
-    let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
-    let mut path = data.get_save_path();
-    let img = data.get_buf_save();
-
-    match shortcut {
-        Action::Save => {
-            let extension = data.get_extension();
-
-            thread::spawn(move || {
-                path.push(default_file_name);
-                path.set_extension(extension);
-                img.save(path).expect("Error in saving image!");
-            });
-        }
-        Action::SaveAs => {
-            thread::spawn(move || {
-                match FileDialog::new()
-                    .set_filename(&default_file_name)
-                    .set_location(&path)
-                    .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
-                    .add_filter("PNG", &["png"])
-                    .add_filter("GIF", &["gif"])
-                    .show_save_single_file()
-                    .unwrap()
-                {
-                    Some(path) => img.save(path).expect("Error in saving image!"),
-                    None => {}
-                }
-            });
-        }
-        _ => {}
+    fn build_timer_menu() -> impl Widget<AppState> {
+        let mut timer_menu = MenuOption::new("Timer".to_string());
+        timer_menu.add_option(
+            "Duration".to_string(),
+            Slider::new()
+                .with_range(0.0, 10.0)
+                .track_color(KeyOrValue::Concrete(Color::TEAL))
+                .knob_style(KnobStyle::Wedge)
+                .axis(druid::widget::Axis::Horizontal)
+                .with_step(1.0)
+                .annotated(2.0, 1.0)
+                .fix_width(250.0)
+                .padding((0.0, 15.0))
+                .lens(AppState::timer),
+        );
+        timer_menu.build()
     }
 }
 
-fn gui_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
+fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
-
     win.set_window_state(druid::WindowState::Minimized);
     data.set_screenshot_mode(mode);
 
