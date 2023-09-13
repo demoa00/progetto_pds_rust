@@ -93,6 +93,11 @@ impl AppState {
     }
 
     pub fn set_buf(&mut self, buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)) {
+        //ImageBuffer sono all'incirca 8MB, sarà per questo il rallentameto dell'app?
+        let b = buf.clone();
+        let v = b.0.to_vec();
+        println!("{:?}", v.len() as f64 / (1024 * 1024) as f64);
+
         self.buf_save = buf.0;
         self.buf_view = buf.1;
     }
@@ -269,7 +274,7 @@ impl AppDelegate<AppState> for EventHandler {
                 return Some(event);
             }
             druid::Event::KeyDown(ref key_event) => {
-                //questo if è solo per debug e testing 
+                //questo if è solo per debug e testing
                 if key_event.key == Key::Character("m".to_string()) {
                     data.set_edit_state(EditState::ShortcutEditing(Action::NewScreenshot));
                 };
@@ -317,7 +322,8 @@ impl AppDelegate<AppState> for EventHandler {
                                         }
                                     }
                                 }
-                            } else { //se si arriva alla terza posizione nel buffer sarà possiblile inserire solamente un char
+                            } else {
+                                //se si arriva alla terza posizione nel buffer sarà possiblile inserire solamente un char
                                 match key_event.key.clone() {
                                     Key::Character(_) => {
                                         self.keys_pressed.push_back(key_event.key.clone());
