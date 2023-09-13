@@ -1,10 +1,12 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
+use chrono::Local;
 use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
+use native_dialog::{FileDialog, MessageDialog};
 use shortcut_lib::*;
 use std::thread;
 use std::time::Duration;
@@ -82,6 +84,7 @@ pub fn build_root_widget() -> impl Widget<AppState> {
         .with_child(menu_view.bottom_page)
         .background(BOTTOM_PAGE_COLOR)
 }
+
 pub struct View {
     top_bar: Box<dyn Widget<AppState>>,
     bottom_page: Box<dyn Widget<AppState>>,
@@ -174,6 +177,7 @@ impl View {
                     .center()
                     .background(BOTTOM_PAGE_COLOR)
             }
+
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
