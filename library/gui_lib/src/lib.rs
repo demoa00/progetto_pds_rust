@@ -1,12 +1,10 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
-use chrono::Local;
 use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
-use native_dialog::{FileDialog, MessageDialog};
 use shortcut_lib::*;
 use std::thread;
 use std::time::Duration;
