@@ -78,6 +78,7 @@ impl View {
                         ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |ctx, data: &mut AppState, _| {
+                        data.reset_img();
                         prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                     },
                 );
@@ -85,6 +86,7 @@ impl View {
                 let button_new_screenshot_cropped = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
                     |ctx, data: &mut AppState, _| {
+                        data.reset_img();
                         prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                     },
                 );
@@ -99,8 +101,8 @@ impl View {
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                     ),
                     |_, data: &mut AppState, _| {
-                        //data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
-                        // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
+                        data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
+                                          // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
                         data.set_view_state(ViewState::MenuView);
                     },
                 );
@@ -160,12 +162,17 @@ impl View {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
                 let timer_menu = MenuOption::build_timer_menu();
-                let menu_options = Flex::column()
-                    .with_child(shortcut_menu)
-                    .with_child(path_menu)
-                    .with_child(timer_menu);
+                let menu_options = Scroll::new(
+                    Flex::column()
+                        .with_child(shortcut_menu)
+                        .with_child(path_menu)
+                        .with_child(timer_menu),
+                )
+                .vertical()
+                .fix_height(400.0);
+                //.content_must_fill(true);
                 FlexMod::column(false)
-                    .with_child(menu_options)
+                    .with_flex_child(menu_options, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
                     .center()
                     .background(BOTTOM_PAGE_COLOR)

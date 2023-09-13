@@ -1,13 +1,13 @@
 use chrono::Local;
 use druid::commands;
-use druid::keyboard_types::Key;
+
 use druid::widget::Controller;
 use druid::widget::Flex;
 use druid::Color;
 use druid::Command;
 use druid::Event;
 use druid::EventCtx;
-use druid::SysMods;
+
 use druid::Widget;
 use druid::WidgetExt;
 use druid::WindowDesc;
@@ -189,11 +189,60 @@ impl AppState {
     pub fn update_shortcuts(&mut self, action: Action, new_value: (usize, char)) {
         self.options.update_shortcuts(action, new_value);
     }
+
+    pub fn save_img(&self) {
+        let mut path = self.get_save_path();
+        let extension = self.get_extension();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
+            path.push(default_file_name);
+            path.set_extension(extension);
+            img.save(path).expect("Error in saving image!");
+        });
+    }
+    pub fn save_img_as(&self) {
+        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+        let path = self.get_save_path();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            match FileDialog::new()
+                .set_filename(&default_file_name)
+                .set_location(&path)
+                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
+                .add_filter("PNG", &["png"])
+                .add_filter("GIF", &["gif"]) //le gif non vanno
+                .show_save_single_file()
+                .unwrap()
+            {
+                Some(path) => img.save(path).expect("Error in saving image!"),
+                Option::<PathBuf>::None => {}
+            }
+        });
+    }
 }
 
 pub struct EventHandler {
     keys_pressed: Vector<druid::keyboard_types::Key>,
-    valid_shortcut: bool,
+    _valid_shortcut: bool,
     start_point: (i32, i32),
     end_point: (i32, i32),
 }
@@ -202,7 +251,7 @@ impl EventHandler {
     pub fn new() -> Self {
         Self {
             keys_pressed: Vector::new(),
-            valid_shortcut: false,
+            _valid_shortcut: false,
             start_point: (i32::default(), i32::default()),
             end_point: (i32::default(), i32::default()),
         }
@@ -228,8 +277,12 @@ impl AppDelegate<AppState> for EventHandler {
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
                                 data.set_buf(
-                                    take_screenshot_area(0, self.start_point, self.end_point)
-                                        .unwrap(),
+                                    take_screenshot_area(
+                                        data.get_screen_index(),
+                                        self.start_point,
+                                        self.end_point,
+                                    )
+                                    .unwrap(),
                                 );
                                 data.set_edit_state(None);
                                 ctx.submit_command(Command::new(
@@ -282,121 +335,23 @@ impl AppDelegate<AppState> for EventHandler {
                 return Some(event);
             }
             druid::Event::KeyDown(ref key_event) => {
-                //questo if è solo per debug e testing
-                if key_event.key == Key::Character("m".to_string()) {
-                    data.set_edit_state(EditState::ShortcutEditing(Action::NewScreenshot));
-                };
-
-                match data.get_edit_state() {
-                    //gestisco gli eventi sulla tastiera solo nel momento in cui
-                    //l'utente intende modificare una shortcut
-                    ShortcutEditing(action) => {
-                        //si carica il buffer di Key solo se la combinazione scelta
-                        //è ancora non valida
-                        if self.valid_shortcut == false {
-                            //come prima scelta dei tasti è possibile inserire solamente
-                            //Ctrl o Cmd e Shift
-                            if self.keys_pressed.len() == 0 {
-                                match key_event.key {
-                                    #[cfg(not(target_os = "macos"))]
-                                    Key::Control => self.keys_pressed.push_back(Key::Control),
-                                    #[cfg(target_os = "macos")]
-                                    Key::Meta => self.keys_pressed.push_back(Key::Meta),
-                                    Key::Shift => self.keys_pressed.push_back(Key::Shift),
-                                    _ => {}
-                                }
-                            } else if self.keys_pressed.len() == 1 {
-                                //come seconda scelta si possono utilizzare Shift e Alt (questo solo se in prima posizione c'è un Ctrl o Cmd)
-                                if self.keys_pressed[0] != key_event.key {
-                                    if key_event.key == Key::Control
-                                        && self.keys_pressed[0] == Key::Shift
-                                    {
-                                        self.keys_pressed[0] = Key::Control;
-                                    } else {
-                                        match key_event.key {
-                                            Key::Shift => self.keys_pressed.push_back(Key::Shift),
-                                            Key::Alt => {
-                                                if (self.keys_pressed[0] == Key::Control)
-                                                    || (self.keys_pressed[0] == Key::Meta)
-                                                {
-                                                    self.keys_pressed.push_back(Key::Alt);
-                                                }
-                                            }
-                                            Key::Character(_) => {
-                                                self.keys_pressed.push_back(key_event.key.clone());
-                                                self.valid_shortcut = true;
-                                            }
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                            } else {
-                                //se si arriva alla terza posizione nel buffer sarà possiblile inserire solamente un char
-                                match key_event.key.clone() {
-                                    Key::Character(_) => {
-                                        self.keys_pressed.push_back(key_event.key.clone());
-                                        self.valid_shortcut = true;
-                                    }
-                                    _ => {}
-                                }
-                            }
-
-                            //per ora se la shortcut è valida si gestisce qui l'update della mappa e del file di config
-                            if self.valid_shortcut {
-                                if self.keys_pressed.len() == 2 {
-                                    let mut ch: Vec<char> =
-                                        self.keys_pressed[1].clone().to_string().chars().collect();
-                                    data.update_shortcuts(
-                                        action,
-                                        (
-                                            SysMods::to_code(
-                                                Key::to_sysmods(self.keys_pressed[0].clone())
-                                                    .unwrap(),
-                                            )
-                                            .unwrap(),
-                                            ch.pop().unwrap(),
-                                        ),
-                                    );
-                                } else if self.keys_pressed.len() == 3 {
-                                    let mut ch: Vec<char> =
-                                        self.keys_pressed[2].clone().to_string().chars().collect();
-                                    data.update_shortcuts(
-                                        action,
-                                        (
-                                            SysMods::to_code(
-                                                Key::to_sysmods_combination((
-                                                    self.keys_pressed[0].clone(),
-                                                    self.keys_pressed[1].clone(),
-                                                ))
-                                                .unwrap(),
-                                            )
-                                            .unwrap(),
-                                            ch.pop().unwrap(),
-                                        ),
-                                    );
-                                }
-                                self.keys_pressed = Vector::new();
-                                self.valid_shortcut = false;
-
-                                data.set_edit_state(EditState::None);
-                            }
-
-                            //println!("{:?}", self.keys_pressed); //debug only
-                        } else {
-                            //si entra qui nel caso in cui la shortcut inserita è valida ma si continua ad editarla
-                            //perciò viene ripulito il buffer e si ricomincia da capo l'inserimento
-                            self.keys_pressed = Vector::new();
-                            self.valid_shortcut = false;
-                        }
-                    }
-                    _ => {
-                        self.keys_pressed = Vector::new();
-                        self.valid_shortcut = false;
+                if let EditState::ShortcutEditing(_) = data.get_edit_state() {
+                    if self.keys_pressed.contains(&key_event.key) == false {
+                        self.keys_pressed.push_back(key_event.key.clone());
                     }
                 }
-
-                //println!("{:?}", key_event.key); //debug only
-
+                return Some(event);
+            }
+            druid::Event::KeyUp(_) => {
+                if let EditState::ShortcutEditing(ref _action) = data.get_edit_state() {
+                    //data.get_shortcuts().update_value(action, self.keys_pressed);
+                    println!(
+                        "Update di {:?} con il buffer {:?}",
+                        _action, self.keys_pressed
+                    );
+                    self.keys_pressed.clear();
+                    data.set_edit_state(EditState::None);
+                }
                 return Some(event);
             }
             _ => return Some(event),
@@ -419,10 +374,18 @@ impl TimerSender {
     }
 }
 
-impl<T, W: Widget<T>> Controller<T, W> for TimerSender {
-    fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
+impl<W: Widget<AppState>> Controller<AppState, W> for TimerSender {
+    fn event(
+        &mut self,
+        child: &mut W,
+        ctx: &mut EventCtx,
+        event: &Event,
+        data: &mut AppState,
+        env: &Env,
+    ) {
         if let Event::MouseUp(_) = event {
-            ctx.request_timer(Duration::from_millis(600));
+            let token = ctx.request_timer(Duration::from_millis(600));
+            data.set_screenshot_token(token.into_raw());
             let mut win = ctx.window().clone();
             win.set_window_state(druid::WindowState::Minimized);
         }

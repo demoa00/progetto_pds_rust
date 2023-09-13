@@ -404,8 +404,8 @@ impl Shortcuts {
 
     /// This function is used to extract a `Shortcut`, for
     /// gui label and other
-    pub fn extract_value_for_gui(&self, key: Action) -> Option<Shortcut> {
-        let shortcut = match self.shortcuts.get(&key) {
+    pub fn extract_value_for_gui(&self, key: &Action) -> Option<Shortcut> {
+        let shortcut = match self.shortcuts.get(key) {
             Some(s) => s.clone(),
             None => panic!("Unable to extract HotKey, Action does not exist"),
         };
