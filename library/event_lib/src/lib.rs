@@ -76,6 +76,7 @@ pub struct AppState {
     edit_state: EditState,
     screenshot_mode: ScreenshotMode,
     options: Options,
+    timer: f64,
 }
 
 impl AppState {
@@ -89,6 +90,7 @@ impl AppState {
             edit_state: EditState::None,
             screenshot_mode: ScreenshotMode::Fullscreen,
             options: Options::new(),
+            timer: 0.0,
         }
     }
 
@@ -244,6 +246,7 @@ impl AppDelegate<AppState> for EventHandler {
     ) -> Option<druid::Event> {
         match event {
             druid::Event::Timer(ref _timer_event) => {
+                println!("Eccoci");
                 match data.get_screenshot_mode() {
                     ScreenshotMode::Fullscreen => {
                         data.set_buf(take_screenshot(data.get_screen_index()).unwrap())
@@ -340,7 +343,7 @@ impl TimerSender {
 impl<T, W: Widget<T>> Controller<T, W> for TimerSender {
     fn event(&mut self, child: &mut W, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
         if let Event::MouseUp(_) = event {
-            ctx.request_timer(Duration::from_millis(500));
+            ctx.request_timer(Duration::from_millis(600));
             let mut win = ctx.window().clone();
             win.set_window_state(druid::WindowState::Minimized);
         }

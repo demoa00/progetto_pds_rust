@@ -1,7 +1,7 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, Env, LocalizedString, Menu, MenuItem, WindowId};
+use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -150,9 +150,11 @@ impl View {
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
+                let timer_menu = MenuOption::build_timer_menu();
                 let menu_options = Flex::column()
                     .with_child(shortcut_menu)
-                    .with_child(path_menu);
+                    .with_child(path_menu)
+                    .with_child(timer_menu);
                 FlexMod::column(false)
                     .with_child(menu_options)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
@@ -327,8 +329,25 @@ impl MenuOption {
                 ),
             )
         }
-
         shortcut_menu.build()
+    }
+
+    fn build_timer_menu() -> impl Widget<AppState> {
+        let mut timer_menu = MenuOption::new("Timer".to_string());
+        timer_menu.add_option(
+            "Duration".to_string(),
+            Slider::new()
+                .with_range(0.0, 10.0)
+                .track_color(KeyOrValue::Concrete(Color::TEAL))
+                .knob_style(KnobStyle::Wedge)
+                .axis(druid::widget::Axis::Horizontal)
+                .with_step(1.0)
+                .annotated(2.0, 1.0)
+                .fix_width(250.0)
+                .padding((0.0, 15.0))
+                .lens(AppState::timer),
+        );
+        timer_menu.build()
     }
 }
 
