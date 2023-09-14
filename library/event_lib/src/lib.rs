@@ -190,6 +190,42 @@ impl AppState {
         self.options.update_shortcuts(action, new_value);
     }
 
+    pub fn resize_img(&mut self, start_point: (i32, i32), end_point: (i32, i32)) {
+        let img_size = (self.buf_save.width(), self.buf_save.height());
+        let infos = calculate_area(img_size, start_point, end_point);
+        match infos {
+            Option::Some(info) => {
+                let (offset_c, offset_r) = (info.0, info.1);
+                let (width, height) = (info.2, info.3);
+                let old_container = self.get_buf_save().into_raw();
+                let mut new_container: Vec<u8> = vec![];
+                for r in 0..height {
+                    let from = ((r + offset_r) * img_size.0 as i32 + offset_c) * 4;
+                    let to = ((r + offset_r) * img_size.0 as i32 + offset_c + width) * 4;
+                    let mut next_row: Vec<u8> =
+                        Vec::from(&old_container[from as usize..to as usize]);
+                    new_container.append(&mut next_row)
+                }
+                let new_buf_save = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
+                    width as u32,
+                    height as u32,
+                    new_container,
+                )
+                .unwrap();
+
+                let new_buf_view = ImageBuf::from_raw(
+                    new_buf_save.clone().to_vec(),
+                    druid::piet::ImageFormat::RgbaSeparate,
+                    width as usize,
+                    height as usize,
+                );
+
+                self.set_buf((new_buf_save, new_buf_view));
+            }
+            Option::None => return,
+        }
+    }
+
     pub fn save_img(&self) {
         let mut path = self.get_save_path();
         let extension = self.get_extension();

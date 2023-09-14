@@ -3,8 +3,9 @@ pub mod druid_mod {
         kurbo::Rect,
         piet::{Image as _, ImageBuf, InterpolationMode, PietImage},
         widget::prelude::*,
-        Affine, Data,
+        Affine,
     };
+    use event_lib::*;
 
     /// A widget that renders a bitmap Image.
     ///
@@ -58,7 +59,7 @@ pub mod druid_mod {
         clip_area: Option<Rect>,
         start_point_resize: (i32, i32),
         end_point_resize: (i32, i32),
-        size: Size,
+        widget_size: Size,
     }
 
     impl ImageMod {
@@ -80,7 +81,7 @@ pub mod druid_mod {
                 clip_area: None,
                 start_point_resize: (0, 0),
                 end_point_resize: (0, 0),
-                size: Size::new(0.0, 0.0),
+                widget_size: Size::new(0.0, 0.0),
             }
         }
 
@@ -144,13 +145,27 @@ pub mod druid_mod {
         }
     }
 
-    impl<AppState: Data> Widget<AppState> for ImageMod {
-        fn event(&mut self, _ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
-            if let Event::MouseUp(ref mouse_event) = event {
-                self.end_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
-            }
-            if let Event::MouseDown(ref mouse_event) = event {
-                self.start_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
+    impl Widget<AppState> for ImageMod {
+        fn event(&mut self, _ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
+            match event {
+                Event::MouseDown(ref mouse_event) => {
+                    self.start_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
+                }
+                Event::MouseUp(ref mouse_event) => {
+                    self.end_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
+                    let image_size = self.image_data.size();
+                    let ratio = image_size.width / self.widget_size.width;
+                    let norm_start_point = (
+                        (self.start_point_resize.0 as f64 * ratio) as i32,
+                        (self.start_point_resize.1 as f64 * ratio) as i32,
+                    );
+                    let norm_end_point = (
+                        (self.end_point_resize.0 as f64 * ratio) as i32,
+                        (self.end_point_resize.1 as f64 * ratio) as i32,
+                    );
+                    data.resize_img(norm_start_point, norm_end_point)
+                }
+                _ => {}
             }
         }
 
@@ -195,7 +210,7 @@ pub mod druid_mod {
             } else {
                 bc.constrain(image_size)
             };
-            self.size = size;
+            self.widget_size = size;
             size
         }
 

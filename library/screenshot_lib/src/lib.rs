@@ -1,6 +1,6 @@
 use druid::ImageBuf;
 use image::*;
-use screenshots::{DisplayInfo, Screen};
+use screenshots::Screen;
 use std::thread;
 use std::time::Duration;
 
@@ -38,7 +38,11 @@ pub fn take_screenshot_area(
     let screens = Screen::all().unwrap();
     let current_screen = screens[current_screen];
     let screen_infos = current_screen.display_info;
-    let infos = calculate_area(screen_infos, start_coords, end_coords);
+    let infos = calculate_area(
+        (screen_infos.width, screen_infos.height),
+        start_coords,
+        end_coords,
+    );
 
     match infos {
         Some(info) => {
@@ -62,7 +66,7 @@ pub fn take_screenshot_area(
 /// This function verifies if the drag&drop comes from left to right, form top to bottom or viceversa, then i calculates
 /// the top left corner and verifies if the dimensions of the area are compatibles with the current screen.
 pub fn calculate_area(
-    screen_infos: DisplayInfo,
+    (screen_width, screen_height): (u32, u32),
     mut start_coords: (i32, i32),
     mut end_coords: (i32, i32),
 ) -> Option<(i32, i32, i32, i32)> {
@@ -74,11 +78,11 @@ pub fn calculate_area(
         end_coords.0 = 0;
     }
     // the screenshot area is between the current screen and a screen on his right
-    if start_coords.0 > screen_infos.width as i32 {
-        start_coords.0 = screen_infos.width as i32;
+    if start_coords.0 > screen_width as i32 {
+        start_coords.0 = screen_width as i32;
     }
-    if end_coords.0 > screen_infos.width as i32 {
-        end_coords.0 = screen_infos.width as i32;
+    if end_coords.0 > screen_width as i32 {
+        end_coords.0 = screen_width as i32;
     }
     // the screenshot area is between the current screen and a screen on his top
     if start_coords.1 < 0 {
@@ -88,11 +92,11 @@ pub fn calculate_area(
         end_coords.1 = 0;
     }
     // the screenshot area is between the current screen and a screen on his right
-    if start_coords.1 > screen_infos.height as i32 {
-        start_coords.1 = screen_infos.height as i32;
+    if start_coords.1 > screen_height as i32 {
+        start_coords.1 = screen_height as i32;
     }
-    if end_coords.1 > screen_infos.height as i32 {
-        end_coords.1 = screen_infos.height as i32;
+    if end_coords.1 > screen_height as i32 {
+        end_coords.1 = screen_height as i32;
     }
 
     let mut left_corner = (0, 0);
@@ -120,8 +124,8 @@ pub fn calculate_area(
     }
 
     // if the top left corner + the 2 dimension are bigger than the screen sizes the screenshot is NOT valid
-    if (width + left_corner.0) > screen_infos.width as i32
-        || (height + left_corner.1) > screen_infos.height as i32
+    if (width + left_corner.0) > screen_width as i32
+        || (height + left_corner.1) > screen_height as i32
     {
         return None;
     }
@@ -130,9 +134,12 @@ pub fn calculate_area(
 
 /// This function recieve a delay expressed in u64 and,
 /// the current screen then it calls `take_screenshot`.
-pub fn take_screenshot_with_delay(time: u64, current_screen: usize) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
+pub fn take_screenshot_with_delay(
+    time: u64,
+    current_screen: usize,
+) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
     let sleep_time = Duration::new(time, 0.0 as u32);
-    
+
     thread::sleep(sleep_time);
 
     return take_screenshot(current_screen);
