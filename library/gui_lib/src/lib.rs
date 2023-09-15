@@ -110,6 +110,7 @@ impl View {
                         data.set_view_state(ViewState::MenuView);
                     },
                 );
+
                 let left_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
                     .with_flex_child(button_new_screenshot_full, 1.0)
@@ -161,7 +162,6 @@ impl View {
                     .center()
                     .background(BOTTOM_PAGE_COLOR)
             }
-
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
