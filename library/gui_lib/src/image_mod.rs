@@ -57,8 +57,8 @@ pub mod druid_mod {
         paint_data: Option<PietImage>,
         interpolation: InterpolationMode,
         clip_area: Option<Rect>,
-        start_point_resize: (i32, i32),
-        end_point_resize: (i32, i32),
+        start_point_resize: (u32, u32),
+        end_point_resize: (u32, u32),
         widget_size: Size,
     }
 
@@ -149,21 +149,22 @@ pub mod druid_mod {
         fn event(&mut self, _ctx: &mut EventCtx, event: &Event, data: &mut AppState, _env: &Env) {
             match event {
                 Event::MouseDown(ref mouse_event) => {
-                    self.start_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
+                    self.start_point_resize = (mouse_event.pos.x as u32, mouse_event.pos.y as u32);
                 }
                 Event::MouseUp(ref mouse_event) => {
-                    self.end_point_resize = (mouse_event.pos.x as i32, mouse_event.pos.y as i32);
+                    self.end_point_resize = (mouse_event.pos.x as u32, mouse_event.pos.y as u32);
                     let image_size = self.image_data.size();
                     let ratio = image_size.width / self.widget_size.width;
                     let norm_start_point = (
-                        (self.start_point_resize.0 as f64 * ratio) as i32,
-                        (self.start_point_resize.1 as f64 * ratio) as i32,
+                        (self.start_point_resize.0 as f64 * ratio) as u32,
+                        (self.start_point_resize.1 as f64 * ratio) as u32,
                     );
                     let norm_end_point = (
-                        (self.end_point_resize.0 as f64 * ratio) as i32,
-                        (self.end_point_resize.1 as f64 * ratio) as i32,
+                        (self.end_point_resize.0 as f64 * ratio) as u32,
+                        (self.end_point_resize.1 as f64 * ratio) as u32,
                     );
-                    data.resize_img(norm_start_point, norm_end_point)
+                    data.highlight_area(norm_start_point, norm_end_point);
+                    data.set_edit_state(EditState::ImageResize);
                 }
                 _ => {}
             }

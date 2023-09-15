@@ -118,8 +118,35 @@ impl View {
 
                 let split = Split::columns(left_part, right_part).bar_size(0.0);
 
-                FlexMod::column(true)
+                let confirm_button = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| {
+                        data.resize_img();
+                        data.set_edit_state(EditState::None);
+                    },
+                );
+
+                let undo_button = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
+                    |_, data: &mut AppState, _| {
+                        data.resize_img();
+                        data.set_edit_state(EditState::None)
+                    },
+                );
+
+                let normal_top_bar = FlexMod::row(true)
                     .with_child(split)
+                    .visible_if(|data: &AppState| data.get_edit_state() != EditState::ImageResize);
+
+                let resize_top_bar = FlexMod::row(false)
+                    .with_child(undo_button)
+                    .with_child(confirm_button)
+                    .visible_if(|data: &AppState| data.get_edit_state() == EditState::ImageResize)
+                    .center();
+
+                FlexMod::column(true)
+                    .with_child(normal_top_bar)
+                    .with_child(resize_top_bar)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
             }
             ViewState::MenuView => {
@@ -169,7 +196,7 @@ impl View {
                 )
                 .vertical()
                 .fix_height(400.0);
-                //.content_must_fill(true);
+
                 FlexMod::column(false)
                     .with_flex_child(menu_options, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
