@@ -19,6 +19,7 @@ use druid::{
 };
 use native_dialog::FileDialog;
 use native_dialog::MessageDialog;
+use native_dialog::MessageType;
 use screenshot_lib::*;
 use shortcut_lib::*;
 use std::thread;
@@ -72,6 +73,28 @@ impl Options {
         new_key_combination: Vector<Key>,
     ) -> Result<(), String> {
         return self.shortcuts.update_value(action, new_key_combination);
+    }
+
+    pub fn update_save_path(&mut self) {
+        match FileDialog::new().show_open_single_dir() {
+            Ok(new_path_opt) => match new_path_opt {
+                Some(new_path) => {
+                    self.save_path.update_save_path(new_path);
+                    return;
+                }
+                Option::None => {}
+            },
+            Err(e) => panic!("{e}"),
+        }
+
+        MessageDialog::new()
+            .set_title("Unable to update save path")
+            .set_text("Selected path is not valid!")
+            .set_type(MessageType::Warning)
+            .show_alert()
+            .unwrap();
+        
+        return;
     }
 }
 
@@ -201,6 +224,10 @@ impl AppState {
         new_key_combination: Vector<Key>,
     ) -> Result<(), String> {
         return self.options.update_shortcuts(action, new_key_combination);
+    }
+
+    pub fn update_save_path(&mut self) {
+        self.options.update_save_path();
     }
 
     pub fn save_img(&self) {

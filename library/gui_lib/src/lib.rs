@@ -42,6 +42,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             )
             .enabled_if(|data: &AppState, _| match data.get_edit_state() {
                 EditState::ShortcutEditing(_) => false,
+                EditState::PathEditing => false,
                 _ => true,
             }),
     );
@@ -238,54 +239,20 @@ impl MenuOption {
         path_menu.add_option(
             "Path".to_string(),
             Flex::row()
-                .with_child(ViewSwitcher::new(
-                    |data: &AppState, _| data.get_edit_state(),
-                    |selector, data, _| {
-                        Box::new(match selector {
-                            EditState::PathEditing => {
-                                let placeholder =
-                                    data.get_save_path().to_str().unwrap().to_string(); //riguardare questa istruzione
-                                Flex::column().with_child(
-                                    TextBox::new()
-                                        .with_placeholder(placeholder)
-                                        .fix_width(150.0)
-                                        .lens(AppState::text_buffer),
-                                )
-                            }
-                            _ => Flex::column().with_child(
-                                Label::new(|data: &AppState, _: &_| {
-                                    data.get_save_path().to_str().unwrap().to_string()
-                                }) //riguardare questa istruzione
-                                .with_text_color(Color::GRAY),
-                            ),
+                .with_child(
+                    Flex::column().with_child(
+                        Label::new(|data: &AppState, _: &_| {
+                            data.get_save_path().to_str().unwrap().to_string()
                         })
-                    },
-                ))
-                .with_child(ViewSwitcher::new(
-                    |data: &AppState, _| data.get_edit_state(),
-                    |selector, _, _| {
-                        Box::new(match selector {
-                            EditState::PathEditing => TransparentButton::with_bg(
-                                Image::new(
-                                    ImageBuf::from_file(format!("{}/check.png", UI_IMG_PATH))
-                                        .unwrap(),
-                                ),
-                                move |_, data: &mut AppState, _| {
-                                    data.set_edit_state(EditState::None);
-                                    println!("Path modificato")
-                                },
-                            ),
-                            _ => TransparentButton::with_bg(
-                                Image::new(
-                                    ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH))
-                                        .unwrap(),
-                                ),
-                                move |_, data: &mut AppState, _| {
-                                    data.set_edit_state(EditState::PathEditing);
-                                    println!("Voglio modificare il path")
-                                },
-                            ),
-                        })
+                        .with_text_color(Color::GRAY),
+                    ),
+                )
+                .with_child(TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()),
+                    move |_ctx, data: &mut AppState, _| {
+                        data.set_edit_state(EditState::PathEditing);
+                        data.update_save_path();
+                        data.set_edit_state(EditState::None);
                     },
                 )),
         );
