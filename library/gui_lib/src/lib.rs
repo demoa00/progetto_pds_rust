@@ -305,12 +305,9 @@ impl MenuOption {
                         if let EditState::ShortcutEditing(ref action_to_edit) = selector {
                             if &action == action_to_edit {
                                 Box::new(
-                                    Flex::column().with_child(
-                                        TextBox::new()
-                                            .with_placeholder("Press buttons")
-                                            .lens(AppState::text_buffer)
-                                            .disabled_if(|_, _| true),
-                                    ),
+                                    Label::new(|data: &AppState, _: &_| data.get_text_buffer())
+                                        .with_text_color(Color::GRAY)
+                                        .padding((0.0, 15.0)),
                                 )
                             } else {
                                 Box::new(Flex::row())

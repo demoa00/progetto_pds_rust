@@ -186,6 +186,10 @@ impl AppState {
         self.options.screen_index = screen_index;
     }
 
+    pub fn get_text_buffer(&self) -> String {
+        self.text_buffer.clone()
+    }
+
     pub fn reset_img(&mut self) {
         self.buf_save = ImageBuffer::default();
         self.buf_view = ImageBuf::empty();
