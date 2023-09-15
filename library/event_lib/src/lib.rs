@@ -1,6 +1,7 @@
+use arboard::Clipboard;
+use arboard::ImageData;
 use chrono::Local;
 use druid::commands;
-
 use druid::keyboard_types::Key;
 use druid::widget::Controller;
 use druid::widget::Flex;
@@ -22,6 +23,7 @@ use native_dialog::MessageDialog;
 use native_dialog::MessageType;
 use screenshot_lib::*;
 use shortcut_lib::*;
+use std::borrow::Cow;
 use std::thread;
 use std::time::Duration;
 use std::{path::PathBuf, str::FromStr};
@@ -93,7 +95,7 @@ impl Options {
             .set_type(MessageType::Warning)
             .show_alert()
             .unwrap();
-        
+
         return;
     }
 }
@@ -134,6 +136,15 @@ impl AppState {
     pub fn set_buf(&mut self, buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)) {
         self.buf_save = buf.0;
         self.buf_view = buf.1;
+
+        let mut clipboard = Clipboard::new().unwrap();
+        let img = ImageData {
+            width: self.buf_save.width() as usize,
+            height: self.buf_save.height() as usize,
+            bytes: Cow::from(self.buf_save.clone().to_vec()),
+        };
+
+        clipboard.set_image(img).expect("Unable to copy image on clipboard");
     }
 
     pub fn get_buf_save(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
