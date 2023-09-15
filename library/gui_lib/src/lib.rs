@@ -1,20 +1,54 @@
 mod button_mod;
 mod flex_mod;
 
-use std::thread;
-use std::time::Duration;
-
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color};
+use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
 use druid::{ImageBuf, Widget, WidgetExt};
 use event_lib::*;
 use flex_mod::druid_mod::*;
 use shortcut_lib::*;
+use std::time::Duration;
 use strum::IntoEnumIterator;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
+
+pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
+    let mut base = Menu::empty();
+
+    base = base.entry(
+        Menu::new(LocalizedString::new("common-menu-file-menu"))
+            .entry(
+                MenuItem::new("New screenshot")
+                    .on_activate(|_ctx, _data: &mut AppState, _| println!("VAFFANCULO!!!"))
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_shortcuts()
+                            .extract_value_for_menu(Action::NewScreenshot)
+                    }),
+            )
+            .entry(
+                MenuItem::new("Save")
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_shortcuts().extract_value_for_menu(Action::Save)
+                    }),
+            )
+            .entry(
+                MenuItem::new("Save as...")
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
+                    .dynamic_hotkey(|data: &AppState, _env: &Env| {
+                        data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
+                    }),
+            )
+            .enabled_if(|data: &AppState, _| match data.get_edit_state() {
+                EditState::ShortcutEditing(_) => false,
+                _ => true,
+            }),
+    );
+
+    return base;
+}
 
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
@@ -44,29 +78,47 @@ impl View {
     fn build_top_bar_widget(view_state: &ViewState) -> impl Widget<AppState> {
         match view_state {
             ViewState::MainView => {
-                let button_new_screenshot = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/new.png", UI_IMG_PATH)).unwrap()),
+                let button_new_screenshot_full = TransparentButton::with_bg(
+                    Image::new(
+                        ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
+                    ),
                     |ctx, data: &mut AppState, _| {
-                        ctx.window().set_size((0.0, 0.0));
-                        thread::sleep(Duration::from_secs(10));
-                        data.set_buf(take_screenshot(0));
-                        ctx.window().set_size((300.0, 200.0));
+                        data.reset_img();
+                        prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                     },
                 );
+
+                let button_new_screenshot_cropped = TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
+                    |ctx, data: &mut AppState, _| {
+                        //ctx.submit_command(druid::commands::HIDE_WINDOW);
+                        data.set_buf(take_screenshot(0));
+                    },
+                );
+
                 let button_options = TransparentButton::with_bg(
                     Image::new(
                         ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                     ),
-                    |_, data: &mut AppState, _| data.set_view_state(ViewState::MenuView),
+                    |_, data: &mut AppState, _| {
+                        data.reset_img(); // cancellando l'immagine prima di andare ad attivare il text box la lag scompare
+                                          // quindi sembra che druid "renderizzi" l'immagine anche se non la si vede
+                        data.set_view_state(ViewState::MenuView);
+                    },
                 );
                 let left_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
-                    .with_flex_child(button_new_screenshot, 1.0)
+                    .with_flex_child(button_new_screenshot_full, 1.0)
+                    .with_flex_child(button_new_screenshot_cropped, 1.0)
                     .must_fill_main_axis(false);
+
                 let right_part = Flex::row()
                     .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                    .with_flex_child(button_save, 1.0)
                     .with_flex_child(button_options, 1.0);
+
                 let split = Split::columns(left_part, right_part).bar_size(0.0);
+
                 FlexMod::column(true)
                     .with_child(split)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
@@ -76,6 +128,7 @@ impl View {
                     Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
+
                 FlexMod::row(false)
                     .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::End)
                     .must_fill_main_axis(true)
@@ -93,10 +146,11 @@ impl View {
                 let screeshot_viewer = Padding::new(
                     (30.0, 30.0),
                     ViewSwitcher::new(
-                        |data: &AppState, _| data.get_buf(),
-                        |_, data, _| Box::new(Image::new(data.get_buf())),
+                        |data: &AppState, _| data.get_buf_view(),
+                        |_, data, _| Box::new(Image::new(data.get_buf_view())),
                     ),
                 );
+
                 FlexMod::column(true)
                     .with_child(screeshot_viewer)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
@@ -107,11 +161,18 @@ impl View {
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
-                let menu_options = Flex::column()
-                    .with_child(shortcut_menu)
-                    .with_child(path_menu);
+                let timer_menu = MenuOption::build_timer_menu();
+                let menu_options = Scroll::new(
+                    Flex::column()
+                        .with_child(shortcut_menu)
+                        .with_child(path_menu)
+                        .with_child(timer_menu),
+                )
+                .vertical()
+                .fix_height(400.0);
+
                 FlexMod::column(false)
-                    .with_child(menu_options)
+                    .with_flex_child(menu_options, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
                     .center()
                     .background(BOTTOM_PAGE_COLOR)
@@ -146,6 +207,7 @@ impl MenuOption {
         )
         .bar_size(0.0)
         .split_point(0.4);
+
         self.options.push(Box::new(option));
     }
 
@@ -158,6 +220,7 @@ impl MenuOption {
                 .padding((40.0, 15.0)),
         );
         let mut options = Flex::column();
+
         for option in self.options {
             options.add_child(option.padding((0.0, 0.0)));
         }
@@ -167,6 +230,7 @@ impl MenuOption {
 
     fn build_path_menu_widget() -> impl Widget<AppState> {
         let mut path_menu = MenuOption::new("Saving".to_string());
+
         path_menu.add_option(
             "Path".to_string(),
             Flex::row()
@@ -175,17 +239,20 @@ impl MenuOption {
                     |selector, data, _| {
                         Box::new(match selector {
                             EditState::PathEditing => {
-                                let placeholder = data.get_save_path();
+                                let placeholder =
+                                    data.get_save_path().to_str().unwrap().to_string(); //riguardare questa istruzione
                                 Flex::column().with_child(
                                     TextBox::new()
                                         .with_placeholder(placeholder)
                                         .fix_width(150.0)
-                                        .lens(AppState::buffer_path),
+                                        .lens(AppState::text_buffer),
                                 )
                             }
                             _ => Flex::column().with_child(
-                                Label::new(|data: &AppState, _: &_| data.get_save_path())
-                                    .with_text_color(Color::GRAY),
+                                Label::new(|data: &AppState, _: &_| {
+                                    data.get_save_path().to_str().unwrap().to_string()
+                                }) //riguardare questa istruzione
+                                .with_text_color(Color::GRAY),
                             ),
                         })
                     },
@@ -223,14 +290,91 @@ impl MenuOption {
 
     fn build_shortcut_menu_widget() -> impl Widget<AppState> {
         let mut shortcut_menu = MenuOption::new("Shortcut".to_string());
-        for action in Action::iter() {
-            shortcut_menu.add_option(
-                        action.to_string(),
-                        Flex::row()
-                            .with_child(Label::new(|_data: &AppState, _: &_| "Alt + F4".to_string() /*get shortcut from action*/).with_text_color(Color::GRAY))
-                            .with_child(TransparentButton::with_bg(Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()), move |_, _data: &mut AppState, _| {/*data.set_edit_state(EditState::ShortcutEditing(data.get_shortcut()));*/ println!("Voglio modificare {:?}", action)})))
-        }
 
+        for action in Action::iter() {
+            let action_clone = action.clone();
+            shortcut_menu.add_option(
+                action.to_string(),
+                ViewSwitcher::new(
+                    move |data: &AppState, _| data.get_edit_state(),
+                    move |selector, _, _| {
+                        if let EditState::ShortcutEditing(ref action_to_edit) = selector {
+                            if &action == action_to_edit {
+                                Box::new(
+                                    Label::new(|data: &AppState, _: &_| data.get_text_buffer())
+                                        .with_text_color(Color::GRAY)
+                                        .padding((0.0, 15.0)),
+                                )
+                            } else {
+                                Box::new(Flex::row())
+                            }
+                        } else {
+                            let act = action_clone.clone();
+                            let act2 = action_clone.clone();
+                            Box::new(
+                                Flex::row()
+                                    .with_child(ViewSwitcher::new(
+                                        move |data: &AppState, _| {
+                                            data.get_shortcuts()
+                                                .extract_value_for_gui(&act)
+                                                .unwrap()
+                                        },
+                                        |selector, _, _| {
+                                            Box::new(
+                                                Label::new(selector.to_string())
+                                                    .with_text_color(Color::GRAY),
+                                            )
+                                        },
+                                    ))
+                                    .with_child(TransparentButton::with_bg(
+                                        Image::new(
+                                            ImageBuf::from_file(format!(
+                                                "{}/edit.png",
+                                                UI_IMG_PATH
+                                            ))
+                                            .unwrap(),
+                                        ),
+                                        move |_, data: &mut AppState, _| {
+                                            data.set_edit_state(EditState::ShortcutEditing(
+                                                act2.clone(),
+                                            ));
+                                            println!("Voglio modificare {:?}", act2)
+                                        },
+                                    )),
+                            )
+                        }
+                    },
+                ),
+            )
+        }
         shortcut_menu.build()
     }
+
+    fn build_timer_menu() -> impl Widget<AppState> {
+        let mut timer_menu = MenuOption::new("Timer".to_string());
+        timer_menu.add_option(
+            "Duration".to_string(),
+            Slider::new()
+                .with_range(0.0, 10.0)
+                .track_color(KeyOrValue::Concrete(Color::TEAL))
+                .knob_style(KnobStyle::Wedge)
+                .axis(druid::widget::Axis::Horizontal)
+                .with_step(1.0)
+                .annotated(2.0, 1.0)
+                .fix_width(250.0)
+                .padding((0.0, 15.0))
+                .lens(AppState::timer),
+        );
+        timer_menu.build()
+    }
+}
+
+fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
+    let mut win = ctx.window().clone();
+    win.set_window_state(druid::WindowState::Minimized);
+    data.set_screenshot_mode(mode);
+
+    let token = ctx.request_timer(Duration::from_millis(data.get_timer() + 500));
+
+    data.set_screenshot_token(token.into_raw());
 }

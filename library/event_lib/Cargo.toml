@@ -6,11 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-screenshots = "0.7.1"
-bincode = "1.3.3"
+screenshot_lib = { path = "../screenshot_lib" }
 shortcut_lib = { path = "../shortcut_lib" }
+
+image = "0.24.7"
 chrono = "0.4.26"
-directories = "5.0.1"
+native-dialog = "0.6.4"
 
 [dependencies.druid]
 version = "0.8.3"

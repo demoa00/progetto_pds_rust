@@ -6,7 +6,7 @@ pub mod druid_mod {
     use druid::{Color, WidgetExt};
 
     const LABEL_INSETS: Insets = Insets::uniform_xy(8., 2.);
-    const BUTTON_DIM: (f64, f64) = (40.0, 40.0);
+    const BUTTON_DIM: (f64, f64) = (45.0, 45.0);
 
     pub struct TransparentButton<T> {
         label: Label<T>,
