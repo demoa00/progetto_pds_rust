@@ -75,74 +75,92 @@ impl View {
     fn build_top_bar_widget(view_state: &ViewState) -> impl Widget<AppState> {
         match view_state {
             ViewState::MainView => {
-                let button_new_screenshot_full = TransparentButton::with_bg(
-                    Image::new(
-                        ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
-                    ),
-                    |ctx, data: &mut AppState, _| {
-                        prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
-                    },
-                );
+                let normal_top_bar = {
+                    let button_new_screenshot_full = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |ctx, data: &mut AppState, _| {
+                            data.set_edit_state(EditState::None);
+                            prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
+                        },
+                    );
 
-                let button_new_screenshot_cropped = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap()),
-                    |ctx, data: &mut AppState, _| {
-                        prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
-                    },
-                );
+                    let button_new_screenshot_cropped = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |ctx, data: &mut AppState, _| {
+                            data.set_edit_state(EditState::None);
+                            prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
+                        },
+                    );
 
-                let button_save = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
-                    |_, data: &mut AppState, _| data.save_img(),
-                );
+                    let button_save = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.save_img(),
+                    );
 
-                let button_options = TransparentButton::with_bg(
-                    Image::new(
-                        ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
-                    ),
-                    |_, data: &mut AppState, _| {
-                        data.reset_img();
-                        data.set_view_state(ViewState::MenuView);
-                    },
-                );
-                let left_part = Flex::row()
-                    .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
-                    .with_flex_child(button_new_screenshot_full, 1.0)
-                    .with_flex_child(button_new_screenshot_cropped, 1.0)
-                    .must_fill_main_axis(false);
+                    let button_options = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {
+                            data.reset_img();
+                            data.set_view_state(ViewState::MenuView);
+                        },
+                    );
+                    let left_part = Flex::row()
+                        .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
+                        .with_flex_child(button_new_screenshot_full, 1.0)
+                        .with_flex_child(button_new_screenshot_cropped, 1.0)
+                        .must_fill_main_axis(false);
 
-                let right_part = Flex::row()
-                    .main_axis_alignment(druid::widget::MainAxisAlignment::End)
-                    .with_flex_child(button_save, 1.0)
-                    .with_flex_child(button_options, 1.0);
+                    let right_part = Flex::row()
+                        .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                        .with_flex_child(button_save, 1.0)
+                        .with_flex_child(button_options, 1.0);
 
-                let split = Split::columns(left_part, right_part).bar_size(0.0);
+                    Split::columns(left_part, right_part).bar_size(0.0)
 
-                let confirm_button = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
-                    |_, data: &mut AppState, _| {
-                        data.resize_img();
-                        data.set_edit_state(EditState::None);
-                    },
-                );
-
-                let undo_button = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap()),
-                    |_, data: &mut AppState, _| {
-                        data.resize_img();
-                        data.set_edit_state(EditState::None)
-                    },
-                );
-
-                let normal_top_bar = FlexMod::row(true)
+                    /*FlexMod::row(true)
                     .with_child(split)
-                    .visible_if(|data: &AppState| data.get_edit_state() != EditState::ImageResize);
+                    .visible_if(|data: &AppState| {
+                        data.get_edit_state() != EditState::ImageResize
+                    })*/
+                };
 
-                let resize_top_bar = FlexMod::row(false)
-                    .with_child(undo_button)
-                    .with_child(confirm_button)
-                    .visible_if(|data: &AppState| data.get_edit_state() == EditState::ImageResize)
-                    .center();
+                let resize_top_bar = {
+                    let confirm_button = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/check.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {
+                            data.resize_img();
+                            data.set_edit_state(EditState::None);
+                        },
+                    );
+
+                    let undo_button = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {
+                            data.clear_highlight();
+                            data.set_edit_state(EditState::None)
+                        },
+                    );
+
+                    FlexMod::row(false)
+                        .with_child(confirm_button)
+                        .with_child(undo_button)
+                        .visible_if(|data: &AppState| {
+                            data.get_edit_state() == EditState::ImageResize
+                        })
+                        .center()
+                };
 
                 FlexMod::column(true)
                     .with_child(normal_top_bar)

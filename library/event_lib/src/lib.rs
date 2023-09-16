@@ -253,7 +253,7 @@ impl AppState {
             new_container.append(&mut next_row)
         }
         let new_buf_save =
-            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width as u32, height as u32, old_container)
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width as u32, height as u32, new_container)
                 .unwrap();
         let new_buf_view = ImageBuf::from_raw(
             new_buf_save.clone().to_vec(),
