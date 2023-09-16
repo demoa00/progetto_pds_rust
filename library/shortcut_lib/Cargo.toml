@@ -10,7 +10,7 @@ directories = "5.0.1"
 serde = { version = "1.0", features = ["derive"] }
 strum = "0.25.0"
 strum_macros = "0.25"
-toml = "0.7.6"
+toml = "0.8.0"
 
 [dependencies.druid]
 version = "0.8.3"

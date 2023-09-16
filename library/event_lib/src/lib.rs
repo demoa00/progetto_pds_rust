@@ -1,33 +1,20 @@
-use arboard::Clipboard;
-use arboard::ImageData;
+use arboard::{Clipboard, ImageData};
 use chrono::Local;
-use druid::commands;
-use druid::keyboard_types::Key;
-use druid::widget::Controller;
-use druid::widget::Flex;
-use druid::Color;
-use druid::Command;
-use druid::Event;
-use druid::EventCtx;
-
-use druid::Widget;
-use druid::WidgetExt;
-use druid::WindowDesc;
 use druid::{
+    commands,
     im::Vector,
     image::{ImageBuffer, Rgba},
-    AppDelegate, Data, DelegateCtx, Env, ImageBuf, Lens,
+    keyboard_types::Key,
+    widget::{Controller, Flex},
+    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Widget,
+    WidgetExt, WindowDesc,
 };
-use native_dialog::FileDialog;
-use native_dialog::MessageDialog;
-use native_dialog::MessageType;
+use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
 use shortcut_lib::*;
-use std::borrow::Cow;
-use std::thread;
-use std::time::Duration;
-use std::{path::PathBuf, str::FromStr};
+use std::{borrow::Cow, path::PathBuf, str::FromStr, thread, time::Duration};
 use EditState::*;
+
 
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
@@ -144,7 +131,9 @@ impl AppState {
             bytes: Cow::from(self.buf_save.clone().to_vec()),
         };
 
-        clipboard.set_image(img).expect("Unable to copy image on clipboard");
+        clipboard
+            .set_image(img)
+            .expect("Unable to copy image on clipboard");
     }
 
     pub fn get_buf_save(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {

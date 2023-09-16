@@ -1,8 +1,8 @@
 use druid::ImageBuf;
 use image::*;
 use screenshots::{DisplayInfo, Screen};
-use std::thread;
-use std::time::Duration;
+use std::{thread, time::Duration};
+
 
 /// This function recieve the current screen on witch the screenshot has to be taken,
 /// then it saves a screenshot of the whole selected screen in a ImageBuffer.
@@ -130,9 +130,12 @@ pub fn calculate_area(
 
 /// This function recieve a delay expressed in u64 and,
 /// the current screen then it calls `take_screenshot`.
-pub fn take_screenshot_with_delay(time: u64, current_screen: usize) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
+pub fn take_screenshot_with_delay(
+    time: u64,
+    current_screen: usize,
+) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
     let sleep_time = Duration::new(time, 0.0 as u32);
-    
+
     thread::sleep(sleep_time);
 
     return take_screenshot(current_screen);

@@ -1,13 +1,15 @@
 use directories::UserDirs;
-use druid::im::Vector;
-use druid::{keyboard_types::Key, Data, HotKey, SysMods};
+use druid::{im::Vector, keyboard_types::Key, Data, HotKey, SysMods};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fs::{self, create_dir, read_dir, OpenOptions};
-use std::io::Write;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{
+    collections::BTreeMap,
+    fs::{self, create_dir, read_dir, OpenOptions},
+    io::Write,
+    path::PathBuf,
+    str::FromStr,
+};
 use strum_macros::EnumIter;
+
 
 const CONF_DIR_PATH: &str = "./conf";
 

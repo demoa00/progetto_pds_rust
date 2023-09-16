@@ -1,13 +1,16 @@
 mod button_mod;
 mod flex_mod;
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
-use druid::{ImageBuf, Widget, WidgetExt};
+use druid::{
+    widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
+    WidgetExt, WindowId,
+};
 use event_lib::*;
 use flex_mod::druid_mod::*;
 use shortcut_lib::*;
 use std::time::Duration;
 use strum::IntoEnumIterator;
+
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -272,9 +275,11 @@ impl MenuOption {
                         if let EditState::ShortcutEditing(ref action_to_edit) = selector {
                             if &action == action_to_edit {
                                 Box::new(
-                                    Label::new(|data: &AppState, _: &_| data.get_text_buffer())
-                                        .with_text_color(Color::GRAY)
-                                        .padding((0.0, 15.0)),
+                                    TextBox::new()
+                                        .with_placeholder("Press keys")
+                                        .lens(AppState::text_buffer)
+                                        .padding((0.0, 15.0))
+                                        .disabled_if(|_, _| true),
                                 )
                             } else {
                                 Box::new(Flex::row())
@@ -282,6 +287,7 @@ impl MenuOption {
                         } else {
                             let act = action_clone.clone();
                             let act2 = action_clone.clone();
+
                             Box::new(
                                 Flex::row()
                                     .with_child(ViewSwitcher::new(
@@ -309,7 +315,6 @@ impl MenuOption {
                                             data.set_edit_state(EditState::ShortcutEditing(
                                                 act2.clone(),
                                             ));
-                                            println!("Voglio modificare {:?}", act2)
                                         },
                                     )),
                             )
