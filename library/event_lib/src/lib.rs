@@ -21,6 +21,7 @@ pub enum EditState {
     ShortcutEditing(Action),
     PathEditing,
     MouseDetecting,
+    ImageResize,
     None,
 }
 
@@ -93,7 +94,7 @@ pub struct AppState {
     #[data(eq)]
     buf_save: ImageBuffer<Rgba<u8>, Vec<u8>>,
     buf_view: ImageBuf,
-    pub text_buffer: String, //campo da ricontrollare
+    text_buffer: String, //campo da ricontrollare
     view_state: ViewState,
     edit_state: EditState,
     screenshot_mode: (ScreenshotMode, u64),
@@ -113,6 +114,7 @@ impl AppState {
             screenshot_mode: (ScreenshotMode::Fullscreen, u64::default()),
             options: Options::new(),
             timer: 0.0,
+            area_to_crop: Area::new(),
         }
     }
 
@@ -193,12 +195,12 @@ impl AppState {
         return self.screenshot_mode.1.clone();
     }
 
-    pub fn get_timer(&self) -> u64 {
-        self.options.timer
+    pub fn get_timer(&self) -> f64 {
+        self.timer
     }
 
-    pub fn set_timer(&mut self, timer: u64) {
-        self.options.timer = timer;
+    pub fn set_timer(&mut self, timer: f64) {
+        self.timer = timer;
     }
 
     pub fn get_screen_index(&self) -> usize {
@@ -280,13 +282,134 @@ impl AppState {
             }
         });
     }
+
+    fn set_area_to_crop(&mut self, area: Area) {
+        self.area_to_crop = area;
+    }
+
+    pub fn clear_highlight(&mut self) {
+        let (width, height) = (self.buf_save.width(), self.buf_save.height());
+        let container = self.get_buf_save().into_raw();
+        let new_buf_view = ImageBuf::from_raw(
+            container,
+            druid::piet::ImageFormat::RgbaSeparate,
+            width as usize,
+            height as usize,
+        );
+        self.set_buf((self.get_buf_save(), new_buf_view));
+    }
+
+    pub fn highlight_area(&mut self, start_point: (u32, u32), end_point: (u32, u32)) {
+        let img_size = (self.buf_save.width(), self.buf_save.height());
+        match calculate_area(img_size, start_point, end_point) {
+            Option::Some(area) => {
+                let (offset_c, offset_r) = area.left_corner;
+                //(offset_c, offset_r, width, height)
+                let mut container = self.get_buf_save().into_raw();
+                for i in (0..container.len()).step_by(4) {
+                    container[(i + 3) as usize] = 255;
+                }
+                for r in 0..area.height {
+                    let from = ((r + offset_r) * img_size.0 + offset_c) * 4;
+                    let to = ((r + offset_r) * img_size.0 + offset_c + area.width) * 4;
+                    for y in (from..to).step_by(4) {
+                        container[(y + 3) as usize] = 150;
+                    }
+                }
+                let new_buf_view = ImageBuf::from_raw(
+                    container,
+                    druid::piet::ImageFormat::RgbaSeparate,
+                    img_size.0 as usize,
+                    img_size.1 as usize,
+                );
+                self.set_area_to_crop(area);
+                self.set_buf((self.get_buf_save(), new_buf_view));
+            }
+            Option::None => return,
+        }
+    }
+
+    pub fn resize_img(&mut self) {
+        let img_size = (self.buf_save.width(), self.buf_save.height());
+        let (offset_c, offset_r) = self.area_to_crop.left_corner;
+        let width = self.area_to_crop.width;
+        let height = self.area_to_crop.height;
+        let old_container = self.get_buf_save().into_raw();
+        let mut new_container: Vec<u8> = vec![];
+        for r in 0..height {
+            let from = ((r + offset_r) * img_size.0 + offset_c) * 4;
+            let to = ((r + offset_r) * img_size.0 + offset_c + width) * 4;
+            let mut next_row: Vec<u8> = Vec::from(&old_container[from as usize..to as usize]);
+            new_container.append(&mut next_row)
+        }
+        let new_buf_save =
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width as u32, height as u32, new_container)
+                .unwrap();
+        let new_buf_view = ImageBuf::from_raw(
+            new_buf_save.clone().to_vec(),
+            druid::piet::ImageFormat::RgbaSeparate,
+            width as usize,
+            height as usize,
+        );
+
+        self.set_buf((new_buf_save, new_buf_view));
+    }
+
+    pub fn save_img(&self) {
+        let mut path = self.get_save_path();
+        let extension = self.get_extension();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
+            path.push(default_file_name);
+            path.set_extension(extension);
+            img.save(path).expect("Error in saving image!");
+        });
+    }
+    pub fn save_img_as(&self) {
+        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
+        let path = self.get_save_path();
+        let img = self.get_buf_save();
+        if img.is_empty() {
+            MessageDialog::new()
+                .set_title("Error in saving image")
+                .set_text("Do first a screenshot!")
+                .set_type(native_dialog::MessageType::Warning)
+                .show_alert()
+                .unwrap();
+            return;
+        }
+        thread::spawn(move || {
+            match FileDialog::new()
+                .set_filename(&default_file_name)
+                .set_location(&path)
+                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
+                .add_filter("PNG", &["png"])
+                .add_filter("GIF", &["gif"]) //le gif non vanno
+                .show_save_single_file()
+                .unwrap()
+            {
+                Some(path) => img.save(path).expect("Error in saving image!"),
+                Option::<PathBuf>::None => {}
+            }
+        });
+    }
 }
 
 pub struct EventHandler {
     keys_pressed: Vector<druid::keyboard_types::Key>,
     _valid_shortcut: bool,
-    start_point: (i32, i32),
-    end_point: (i32, i32),
+    start_point: (u32, u32),
+    end_point: (u32, u32),
 }
 
 impl EventHandler {
@@ -294,8 +417,8 @@ impl EventHandler {
         Self {
             keys_pressed: Vector::new(),
             _valid_shortcut: false,
-            start_point: (i32::default(), i32::default()),
-            end_point: (i32::default(), i32::default()),
+            start_point: (u32::default(), u32::default()),
+            end_point: (u32::default(), u32::default()),
         }
     }
 }
@@ -352,9 +475,9 @@ impl AppDelegate<AppState> for EventHandler {
             }
             druid::Event::MouseDown(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
-                    let start_point: (i32, i32) = (
-                        mouse_event.pos.x.ceil() as i32,
-                        mouse_event.pos.y.ceil() as i32,
+                    let start_point: (u32, u32) = (
+                        mouse_event.pos.x.ceil() as u32,
+                        mouse_event.pos.y.ceil() as u32,
                     );
 
                     self.start_point = start_point;
@@ -364,9 +487,9 @@ impl AppDelegate<AppState> for EventHandler {
             }
             druid::Event::MouseUp(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
-                    let end_point: (i32, i32) = (
-                        mouse_event.pos.x.ceil() as i32,
-                        mouse_event.pos.y.ceil() as i32,
+                    let end_point: (u32, u32) = (
+                        mouse_event.pos.x.ceil() as u32,
+                        mouse_event.pos.y.ceil() as u32,
                     );
 
                     self.end_point = end_point;
