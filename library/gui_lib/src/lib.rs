@@ -10,9 +10,10 @@ use event_lib::*;
 use flex_mod::druid_mod::*;
 use image_mod::druid_mod::ImageMod;
 use shortcut_lib::*;
+use core::panic;
 use std::time::Duration;
 use strum::IntoEnumIterator;
-
+use native_dialog::MessageDialog;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -60,6 +61,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
     let menu_view = View::new(ViewState::MenuView);
+    let close_controller = CloseWindow::new();
 
     Flex::column()
         .with_child(main_view.top_bar)
@@ -67,6 +69,7 @@ pub fn build_root_widget() -> impl Widget<AppState> {
         .with_child(menu_view.top_bar)
         .with_child(menu_view.bottom_page)
         .background(BOTTOM_PAGE_COLOR)
+        .controller(close_controller)
 }
 
 pub struct View {
@@ -113,15 +116,36 @@ impl View {
                         |_, data: &mut AppState, _| data.save_img(),
                     );
 
+                    let button_copy = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.copy_to_clipboard(),
+                    );
+
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |_, data: &mut AppState, _| {
-                            data.reset_img();
-                            data.set_view_state(ViewState::MenuView);
+                            if !data.get_buf_save().is_empty() {
+                                match MessageDialog::new().set_title("Do you want to exit the editing window?")
+                                                            .set_text("If you confirm all changes made and the image will be deleted")
+                                                            .show_confirm() {
+                                    Ok(confirm) => {
+                                        if confirm {
+                                            data.reset_img();
+                                            data.set_view_state(ViewState::MenuView);
+                                        }
+                                    },
+                                    Err(e) => panic!("{}", e),
+                                }   
+                            }else{
+                                data.set_view_state(ViewState::MenuView);
+                            }
                         },
                     );
+
                     let left_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
                         .with_flex_child(button_new_screenshot_full, 1.0)
@@ -130,6 +154,7 @@ impl View {
 
                     let right_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                        .with_flex_child(button_copy, 1.0)
                         .with_flex_child(button_save, 1.0)
                         .with_flex_child(button_options, 1.0);
 
@@ -392,4 +417,30 @@ fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: 
 
     let token = ctx.request_timer(Duration::from_millis(data.get_timer() as u64 + 500));
     data.set_screenshot_token(token.into_raw());
+}
+
+struct CloseWindow;
+
+impl CloseWindow {
+    fn new() -> Self{
+        CloseWindow
+    }
+}
+
+impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
+    /* fn event(&mut self, _child: &mut W, _ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, _env: &Env) {
+        match event {
+            druid::Event::WindowCloseRequested => {
+                if !data.is_img_saved() && !data.get_buf_save().is_empty() {
+                    match MessageDialog::new().set_title("Are you sure you want to close without saving the changes?")
+                                                .set_text("If you confirm all changes made and the image will be deleted")
+                                                .show_confirm() {
+                        Ok(confirm) => println!("{}", confirm),
+                        Err(e) => panic!("{}", e),
+                    }
+                }
+            },
+            _ => {}
+        }
+    } */
 }

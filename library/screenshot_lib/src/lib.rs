@@ -1,6 +1,6 @@
 use druid::{Data, ImageBuf};
 use image::*;
-use screenshots::{DisplayInfo, Screen};
+use screenshots::Screen;
 use std::{thread, time::Duration};
 
 
@@ -93,12 +93,12 @@ pub fn calculate_area(
     mut end_coords: (u32, u32),
 ) -> Option<Area> {
     // the screenshot area is between the current screen and a screen on his left
-    if start_coords.0 < 0 {
+    /* if start_coords.0 < 0 {
         start_coords.0 = 0;
     }
     if end_coords.0 < 0 {
         end_coords.0 = 0;
-    }
+    } */
     // the screenshot area is between the current screen and a screen on his right
     if start_coords.0 > screen_width {
         start_coords.0 = screen_width;
@@ -107,12 +107,12 @@ pub fn calculate_area(
         end_coords.0 = screen_width;
     }
     // the screenshot area is between the current screen and a screen on his top
-    if start_coords.1 < 0 {
+    /* if start_coords.1 < 0 {
         start_coords.1 = 0;
     }
     if end_coords.1 < 0 {
         end_coords.1 = 0;
-    }
+    } */
     // the screenshot area is between the current screen and a screen on his right
     if start_coords.1 > screen_height {
         start_coords.1 = screen_height;

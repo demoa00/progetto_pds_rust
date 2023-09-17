@@ -15,7 +15,6 @@ use shortcut_lib::*;
 use std::{borrow::Cow, path::PathBuf, str::FromStr, thread, time::Duration};
 use EditState::*;
 
-
 #[derive(Clone, Data, PartialEq, Eq)]
 pub enum EditState {
     ShortcutEditing(Action),
@@ -101,6 +100,7 @@ pub struct AppState {
     options: Options,
     timer: f64,
     area_to_crop: Area,
+    img_saved: bool
 }
 
 impl AppState {
@@ -116,6 +116,7 @@ impl AppState {
             options: Options::new(),
             timer: 0.0,
             area_to_crop: Area::new(),
+            img_saved: false,
         }
     }
 
@@ -124,6 +125,8 @@ impl AppState {
     }
 
     pub fn set_buf(&mut self, buf: (ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)) {
+        self.img_saved = false;
+
         self.buf_save = buf.0;
         self.buf_view = buf.1;
 
@@ -145,6 +148,19 @@ impl AppState {
 
     pub fn get_buf_view(&self) -> ImageBuf {
         return self.buf_view.clone();
+    }
+
+    pub fn copy_to_clipboard(&self) {
+        let mut clipboard = Clipboard::new().unwrap();
+        let img = ImageData {
+            width: self.buf_save.width() as usize,
+            height: self.buf_save.height() as usize,
+            bytes: Cow::from(self.buf_save.clone().to_vec()),
+        };
+
+        clipboard
+            .set_image(img)
+            .expect("Unable to copy image on clipboard");
     }
 
     pub fn get_save_path(&self) -> PathBuf {
@@ -216,7 +232,13 @@ impl AppState {
         self.text_buffer.clone()
     }
 
+    pub fn is_img_saved(&self) -> bool{
+        return self.img_saved;
+    }
+
     pub fn reset_img(&mut self) {
+        self.img_saved = false;
+
         self.buf_save = ImageBuffer::default();
         self.buf_view = ImageBuf::empty();
     }
@@ -255,7 +277,7 @@ impl AppState {
             Option::Some(area) => {
                 let (offset_c, offset_r) = area.left_corner;
                 let mut container = self.get_buf_save().into_raw();
-                
+
                 for i in (0..container.len()).step_by(4) {
                     container[(i + 3) as usize] = 255;
                 }
@@ -305,10 +327,11 @@ impl AppState {
         self.set_buf((new_buf_save, new_buf_view));
     }
 
-    pub fn save_img(&self) {
+    pub fn save_img(&mut self) {
         let mut path = self.get_save_path();
         let extension = self.get_extension();
         let img = self.get_buf_save();
+
         if img.is_empty() {
             MessageDialog::new()
                 .set_title("Error in saving image")
@@ -318,18 +341,23 @@ impl AppState {
                 .unwrap();
             return;
         }
+
         thread::spawn(move || {
             let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
+
             path.push(default_file_name);
             path.set_extension(extension);
             img.save(path).expect("Error in saving image!");
         });
+
+        self.img_saved = true;
     }
-    
-    pub fn save_img_as(&self) {
+
+    pub fn save_img_as(&mut self) {
         let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
         let path = self.get_save_path();
         let img = self.get_buf_save();
+
         if img.is_empty() {
             MessageDialog::new()
                 .set_title("Error in saving image")
@@ -339,6 +367,7 @@ impl AppState {
                 .unwrap();
             return;
         }
+
         thread::spawn(move || {
             match FileDialog::new()
                 .set_filename(&default_file_name)
@@ -353,6 +382,8 @@ impl AppState {
                 Option::<PathBuf>::None => {}
             }
         });
+
+        self.img_saved = true;
     }
 }
 
@@ -507,7 +538,7 @@ fn build_highlighter() -> impl Widget<AppState> {
 struct TimerSender;
 
 impl TimerSender {
-    fn new() -> TimerSender {
+    fn new() -> Self {
         TimerSender
     }
 }
