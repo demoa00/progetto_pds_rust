@@ -8,6 +8,7 @@ use druid::{
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
+use image_mod::druid_mod::ImageMod;
 use shortcut_lib::*;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -133,12 +134,6 @@ impl View {
                         .with_flex_child(button_options, 1.0);
 
                     Split::columns(left_part, right_part).bar_size(0.0)
-
-                    /*FlexMod::row(true)
-                    .with_child(split)
-                    .visible_if(|data: &AppState| {
-                        data.get_edit_state() != EditState::ImageResize
-                    })*/
                 };
 
                 let resize_top_bar = {
@@ -311,7 +306,6 @@ impl MenuOption {
 
         for action in Action::iter() {
             let action_clone = action.clone();
-            let action_clone = action.clone();
             shortcut_menu.add_option(
                 action.to_string(),
                 ViewSwitcher::new(
@@ -386,27 +380,9 @@ impl MenuOption {
                 .lens(AppState::timer),
         );
         timer_menu.build()
-
-    fn build_timer_menu() -> impl Widget<AppState> {
-        let mut timer_menu = MenuOption::new("Timer".to_string());
-        timer_menu.add_option(
-            "Duration".to_string(),
-            Slider::new()
-                .with_range(0.0, 10.0)
-                .track_color(KeyOrValue::Concrete(Color::TEAL))
-                .knob_style(KnobStyle::Wedge)
-                .axis(druid::widget::Axis::Horizontal)
-                .with_step(1.0)
-                .annotated(2.0, 1.0)
-                .fix_width(250.0)
-                .padding((0.0, 15.0))
-                .lens(AppState::timer),
-        );
-        timer_menu.build()
     }
 }
 
-fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
 fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
     win.set_window_state(druid::WindowState::Minimized);

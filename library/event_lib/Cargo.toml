@@ -11,13 +11,8 @@ shortcut_lib = { path = "../shortcut_lib" }
 
 arboard = "3.2.1"
 image = "0.24.7"
-<<<<<<< HEAD
 chrono = "0.4.26"
 native-dialog = "0.6.4"
-=======
-native-dialog = "0.6.4"
-chrono = "0.4.26"
->>>>>>> gio
 
 [dependencies.druid]
 version = "0.8.3"

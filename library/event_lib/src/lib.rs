@@ -94,12 +94,13 @@ pub struct AppState {
     #[data(eq)]
     buf_save: ImageBuffer<Rgba<u8>, Vec<u8>>,
     buf_view: ImageBuf,
-    text_buffer: String, //campo da ricontrollare
+    text_buffer: String,
     view_state: ViewState,
     edit_state: EditState,
     screenshot_mode: (ScreenshotMode, u64),
     options: Options,
     timer: f64,
+    area_to_crop: Area,
 }
 
 impl AppState {
@@ -232,57 +233,6 @@ impl AppState {
         self.options.update_save_path();
     }
 
-    pub fn save_img(&self) {
-        let mut path = self.get_save_path();
-        let extension = self.get_extension();
-        let img = self.get_buf_save();
-
-        if img.is_empty() {
-            MessageDialog::new()
-                .set_title("Error in saving image")
-                .set_text("Do first a screenshot!")
-                .set_type(native_dialog::MessageType::Warning)
-                .show_alert()
-                .unwrap();
-            return;
-        }
-        thread::spawn(move || {
-            let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S"));
-            path.push(default_file_name);
-            path.set_extension(extension);
-            img.save(path).expect("Error in saving image!");
-        });
-    }
-
-    pub fn save_img_as(&self) {
-        let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
-        let path = self.get_save_path();
-        let img = self.get_buf_save();
-        if img.is_empty() {
-            MessageDialog::new()
-                .set_title("Error in saving image")
-                .set_text("Do first a screenshot!")
-                .set_type(native_dialog::MessageType::Warning)
-                .show_alert()
-                .unwrap();
-            return;
-        }
-        thread::spawn(move || {
-            match FileDialog::new()
-                .set_filename(&default_file_name)
-                .set_location(&path)
-                .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
-                .add_filter("PNG", &["png"])
-                .add_filter("GIF", &["gif"]) //le gif non vanno
-                .show_save_single_file()
-                .unwrap()
-            {
-                Some(path) => img.save(path).expect("Error in saving image!"),
-                Option::<PathBuf>::None => {}
-            }
-        });
-    }
-
     fn set_area_to_crop(&mut self, area: Area) {
         self.area_to_crop = area;
     }
@@ -304,8 +254,8 @@ impl AppState {
         match calculate_area(img_size, start_point, end_point) {
             Option::Some(area) => {
                 let (offset_c, offset_r) = area.left_corner;
-                //(offset_c, offset_r, width, height)
                 let mut container = self.get_buf_save().into_raw();
+                
                 for i in (0..container.len()).step_by(4) {
                     container[(i + 3) as usize] = 255;
                 }
@@ -375,6 +325,7 @@ impl AppState {
             img.save(path).expect("Error in saving image!");
         });
     }
+    
     pub fn save_img_as(&self) {
         let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
         let path = self.get_save_path();
