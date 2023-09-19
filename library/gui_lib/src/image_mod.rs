@@ -156,12 +156,12 @@ pub mod druid_mod {
                     let image_size = self.image_data.size();
                     let ratio = image_size.width / self.widget_size.width;
                     let norm_start_point = (
-                        (self.start_point_resize.0 as f64 * ratio) as u32,
-                        (self.start_point_resize.1 as f64 * ratio) as u32,
+                        (self.start_point_resize.0 as f64 * ratio) as i32,
+                        (self.start_point_resize.1 as f64 * ratio) as i32,
                     );
                     let norm_end_point = (
-                        (self.end_point_resize.0 as f64 * ratio) as u32,
-                        (self.end_point_resize.1 as f64 * ratio) as u32,
+                        (self.end_point_resize.0 as f64 * ratio) as i32,
+                        (self.end_point_resize.1 as f64 * ratio) as i32,
                     );
                     data.highlight_area(norm_start_point, norm_end_point);
                     data.set_edit_state(EditState::ImageResize);

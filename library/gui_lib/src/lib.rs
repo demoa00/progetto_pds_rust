@@ -14,6 +14,7 @@ use core::panic;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use native_dialog::MessageDialog;
+//use native_dialog::MessageType::Warning;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -128,7 +129,7 @@ impl View {
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |_, data: &mut AppState, _| {
-                            if !data.get_buf_save().is_empty() {
+                            if !data.get_buf_view().raw_pixels().is_empty() {
                                 match MessageDialog::new().set_title("Do you want to exit the editing window?")
                                                             .set_text("If you confirm all changes made and the image will be deleted")
                                                             .show_confirm() {
@@ -428,19 +429,24 @@ impl CloseWindow {
 }
 
 impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
-    /* fn event(&mut self, _child: &mut W, _ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, _env: &Env) {
+    /* fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
         match event {
             druid::Event::WindowCloseRequested => {
-                if !data.is_img_saved() && !data.get_buf_save().is_empty() {
+                if !data.is_img_saved() && !data.get_buf_view().raw_pixels().is_empty() {
                     match MessageDialog::new().set_title("Are you sure you want to close without saving the changes?")
                                                 .set_text("If you confirm all changes made and the image will be deleted")
+                                                .set_type(Warning)
                                                 .show_confirm() {
-                        Ok(confirm) => println!("{}", confirm),
+                        Ok(confirm) => {
+                            if !confirm {
+                                todo!();
+                            }
+                        },
                         Err(e) => panic!("{}", e),
                     }
                 }
             },
-            _ => {}
+            _ => child.event(ctx, event, data, env)
         }
     } */
 }
