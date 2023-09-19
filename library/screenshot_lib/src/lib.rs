@@ -92,13 +92,6 @@ pub fn calculate_area(
     mut start_coords: (u32, u32),
     mut end_coords: (u32, u32),
 ) -> Option<Area> {
-    // the screenshot area is between the current screen and a screen on his left
-    if start_coords.0 < 0 {
-        start_coords.0 = 0;
-    }
-    if end_coords.0 < 0 {
-        end_coords.0 = 0;
-    }
     // the screenshot area is between the current screen and a screen on his right
     if start_coords.0 > screen_width {
         start_coords.0 = screen_width;
@@ -106,13 +99,7 @@ pub fn calculate_area(
     if end_coords.0 > screen_width {
         end_coords.0 = screen_width;
     }
-    // the screenshot area is between the current screen and a screen on his top
-    if start_coords.1 < 0 {
-        start_coords.1 = 0;
-    }
-    if end_coords.1 < 0 {
-        end_coords.1 = 0;
-    }
+
     // the screenshot area is between the current screen and a screen on his right
     if start_coords.1 > screen_height {
         start_coords.1 = screen_height;

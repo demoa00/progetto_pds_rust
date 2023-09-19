@@ -49,7 +49,6 @@ pub enum ScreenshotMode {
 #[derive(Clone, Debug, PartialEq, Eq, Data)]
 struct Options {
     save_path: SavePath,
-    timer: u64,
     extension: String,
     shortcuts: Shortcuts,
     screen_index: usize,
@@ -59,7 +58,6 @@ impl Options {
     pub fn new() -> Options {
         Options {
             save_path: SavePath::new(),
-            timer: 0,
             extension: String::from_str("jpg").unwrap(),
             shortcuts: Shortcuts::new(),
             screen_index: 0,

@@ -109,6 +109,7 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| {
                             data.reset_img();
+                            data.set_edit_state(EditSate::None);
                             data.set_view_state(ViewState::MenuView);
                         },
                     );
