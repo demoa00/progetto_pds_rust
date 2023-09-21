@@ -241,7 +241,10 @@ impl AppState {
 
     pub fn clear_highlight(&mut self) {
         let (width, height) = (self.buf_view.width(), self.buf_view.height());
-        let container = self.buf_view.raw_pixels().to_vec();
+        let mut container = self.buf_view.raw_pixels().to_vec();
+        for i in (0..container.len()).step_by(4) {
+            container[(i + 3) as usize] = 255;
+        }
         let new_buf_view = ImageBuf::from_raw(
             container,
             druid::piet::ImageFormat::RgbaSeparate,
@@ -293,6 +296,9 @@ impl AppState {
             let from = ((r + offset_r) * img_size.0 + offset_c) * 4;
             let to = ((r + offset_r) * img_size.0 + offset_c + width) * 4;
             let mut next_row: Vec<u8> = Vec::from(&old_container[from as usize..to as usize]);
+            for c in (0..next_row.len()).step_by(4) {
+                next_row[(c + 3) as usize] = 255;
+            }
             new_container.append(&mut next_row)
         }
 
@@ -410,9 +416,10 @@ impl AppDelegate<AppState> for EventHandler {
             druid::Event::Timer(ref timer_event) => {
                 if data.get_screenshot_token() == timer_event.into_raw() {
                     match data.get_screenshot_mode() {
-                        ScreenshotMode::Fullscreen => {
-                            data.set_buf(take_screenshot_with_delay(data.timer, data.get_screen_index()).unwrap())
-                        }
+                        ScreenshotMode::Fullscreen => data.set_buf(
+                            take_screenshot_with_delay(data.timer, data.get_screen_index())
+                                .unwrap(),
+                        ),
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
                                 data.set_buf(
