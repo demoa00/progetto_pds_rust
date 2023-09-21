@@ -10,9 +10,8 @@ event_lib = { path = "../event_lib" }
 shortcut_lib = { path = "../shortcut_lib" }
 screenshot_lib ={ path = "../screenshot_lib" }
 
-strum = "0.25.0"
-chrono = "0.4.26"
 native-dialog = "0.6.4"
+strum = "0.25.0"
 
 [dependencies.druid]
 version = "0.8.3"

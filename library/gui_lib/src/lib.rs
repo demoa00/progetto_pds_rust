@@ -2,14 +2,19 @@ mod button_mod;
 mod flex_mod;
 mod image_mod;
 use button_mod::druid_mod::*;
-use druid::{widget::*, Color, Env, KeyOrValue, LocalizedString, Menu, MenuItem, WindowId};
-use druid::{ImageBuf, Widget, WidgetExt};
+use druid::{
+    widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
+    WidgetExt, WindowId,
+};
 use event_lib::*;
 use flex_mod::druid_mod::*;
-use image_mod::druid_mod::*;
+use image_mod::druid_mod::ImageMod;
 use shortcut_lib::*;
+use core::panic;
 use std::time::Duration;
 use strum::IntoEnumIterator;
+use native_dialog::MessageDialog;
+//use native_dialog::MessageType::Warning;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -31,6 +36,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::Save)
                     }),
@@ -38,10 +44,16 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save as...")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
+                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
                     }),
-            ),
+            )
+            .enabled_if(|data: &AppState, _| match data.get_edit_state() {
+                EditState::ShortcutEditing(_) => false,
+                EditState::PathEditing => false,
+                _ => true,
+            }),
     );
 
     return base;
@@ -50,6 +62,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
     let menu_view = View::new(ViewState::MenuView);
+    let close_controller = CloseWindow::new();
 
     Flex::column()
         .with_child(main_view.top_bar)
@@ -57,6 +70,7 @@ pub fn build_root_widget() -> impl Widget<AppState> {
         .with_child(menu_view.top_bar)
         .with_child(menu_view.bottom_page)
         .background(BOTTOM_PAGE_COLOR)
+        .controller(close_controller)
 }
 
 pub struct View {
@@ -103,16 +117,37 @@ impl View {
                         |_, data: &mut AppState, _| data.save_img(),
                     );
 
+                    let button_copy = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.copy_to_clipboard(),
+                    );
+
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |_, data: &mut AppState, _| {
-                            data.reset_img();
-                            data.set_edit_state(EditSate::None);
-                            data.set_view_state(ViewState::MenuView);
+                            if !data.get_buf_view().raw_pixels().is_empty() {
+                                match MessageDialog::new().set_title("Do you want to exit the editing window?")
+                                                            .set_text("If you confirm all changes made and the image will be deleted")
+                                                            .show_confirm() {
+                                    Ok(confirm) => {
+                                        if confirm {
+                                            data.reset_img();
+                                            data.set_edit_state(EditSate::None);
+                                            data.set_view_state(ViewState::MenuView);
+                                        }
+                                    },
+                                    Err(e) => panic!("{}", e),
+                                }   
+                            }else{
+                                data.set_view_state(ViewState::MenuView);
+                            }
                         },
                     );
+
                     let left_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
                         .with_flex_child(button_new_screenshot_full, 1.0)
@@ -121,16 +156,11 @@ impl View {
 
                     let right_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                        .with_flex_child(button_copy, 1.0)
                         .with_flex_child(button_save, 1.0)
                         .with_flex_child(button_options, 1.0);
 
                     Split::columns(left_part, right_part).bar_size(0.0)
-
-                    /*FlexMod::row(true)
-                    .with_child(split)
-                    .visible_if(|data: &AppState| {
-                        data.get_edit_state() != EditState::ImageResize
-                    })*/
                 };
 
                 let resize_top_bar = {
@@ -202,7 +232,6 @@ impl View {
                     .center()
                     .background(BOTTOM_PAGE_COLOR)
             }
-
             ViewState::MenuView => {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
@@ -279,54 +308,20 @@ impl MenuOption {
         path_menu.add_option(
             "Path".to_string(),
             Flex::row()
-                .with_child(ViewSwitcher::new(
-                    |data: &AppState, _| data.get_edit_state(),
-                    |selector, data, _| {
-                        Box::new(match selector {
-                            EditState::PathEditing => {
-                                let placeholder =
-                                    data.get_save_path().to_str().unwrap().to_string(); //riguardare questa istruzione
-                                Flex::column().with_child(
-                                    TextBox::new()
-                                        .with_placeholder(placeholder)
-                                        .fix_width(150.0)
-                                        .lens(AppState::text_buffer),
-                                )
-                            }
-                            _ => Flex::column().with_child(
-                                Label::new(|data: &AppState, _: &_| {
-                                    data.get_save_path().to_str().unwrap().to_string()
-                                }) //riguardare questa istruzione
-                                .with_text_color(Color::GRAY),
-                            ),
+                .with_child(
+                    Flex::column().with_child(
+                        Label::new(|data: &AppState, _: &_| {
+                            data.get_save_path().to_str().unwrap().to_string()
                         })
-                    },
-                ))
-                .with_child(ViewSwitcher::new(
-                    |data: &AppState, _| data.get_edit_state(),
-                    |selector, _, _| {
-                        Box::new(match selector {
-                            EditState::PathEditing => TransparentButton::with_bg(
-                                Image::new(
-                                    ImageBuf::from_file(format!("{}/check.png", UI_IMG_PATH))
-                                        .unwrap(),
-                                ),
-                                move |_, data: &mut AppState, _| {
-                                    data.set_edit_state(EditState::None);
-                                    println!("Path modificato")
-                                },
-                            ),
-                            _ => TransparentButton::with_bg(
-                                Image::new(
-                                    ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH))
-                                        .unwrap(),
-                                ),
-                                move |_, data: &mut AppState, _| {
-                                    data.set_edit_state(EditState::PathEditing);
-                                    println!("Voglio modificare il path")
-                                },
-                            ),
-                        })
+                        .with_text_color(Color::GRAY),
+                    ),
+                )
+                .with_child(TransparentButton::with_bg(
+                    Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()),
+                    move |_ctx, data: &mut AppState, _| {
+                        data.set_edit_state(EditState::PathEditing);
+                        data.update_save_path();
+                        data.set_edit_state(EditState::None);
                     },
                 )),
         );
@@ -346,11 +341,11 @@ impl MenuOption {
                         if let EditState::ShortcutEditing(ref action_to_edit) = selector {
                             if &action == action_to_edit {
                                 Box::new(
-                                    Flex::column().with_child(
-                                        Label::new("Press buttons")
-                                            .with_text_color(Color::BLACK)
-                                            .padding((0.0, 15.0)),
-                                    ),
+                                    TextBox::new()
+                                        .with_placeholder("Press keys")
+                                        .lens(AppState::text_buffer)
+                                        .padding((0.0, 15.0))
+                                        .disabled_if(|_, _| true),
                                 )
                             } else {
                                 Box::new(Flex::row())
@@ -385,7 +380,6 @@ impl MenuOption {
                                             data.set_edit_state(EditState::ShortcutEditing(
                                                 act2.clone(),
                                             ));
-                                            println!("Voglio modificare {:?}", act2)
                                         },
                                     )),
                             )
@@ -425,4 +419,35 @@ fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: 
 
     let token = ctx.request_timer(Duration::from_millis(data.get_timer() as u64 + 500));
     data.set_screenshot_token(token.into_raw());
+}
+
+struct CloseWindow;
+
+impl CloseWindow {
+    fn new() -> Self{
+        CloseWindow
+    }
+}
+
+impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
+    /* fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
+        match event {
+            druid::Event::WindowCloseRequested => {
+                if !data.is_img_saved() && !data.get_buf_view().raw_pixels().is_empty() {
+                    match MessageDialog::new().set_title("Are you sure you want to close without saving the changes?")
+                                                .set_text("If you confirm all changes made and the image will be deleted")
+                                                .set_type(Warning)
+                                                .show_confirm() {
+                        Ok(confirm) => {
+                            if !confirm {
+                                todo!();
+                            }
+                        },
+                        Err(e) => panic!("{}", e),
+                    }
+                }
+            },
+            _ => child.event(ctx, event, data, env)
+        }
+    } */
 }
