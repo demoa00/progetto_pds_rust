@@ -1,10 +1,13 @@
 mod button_mod;
 mod flex_mod;
 mod image_mod;
+pub mod canvas_mod;
 use button_mod::druid_mod::*;
+use canvas_mod::canvas::Canvas;
 use druid::{
     widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
     WidgetExt, WindowId,
+    piet::ImageFormat,
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -221,7 +224,7 @@ impl View {
                     (30.0, 30.0),
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
-                        |_, data, _| Box::new(ImageMod::new(data.get_buf_view())),
+                        |_, data, _| Box::new(Canvas::new(data.get_buf_view())),
                     ),
                 );
 
