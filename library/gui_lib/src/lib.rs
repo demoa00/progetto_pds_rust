@@ -136,7 +136,7 @@ impl View {
                                     Ok(confirm) => {
                                         if confirm {
                                             data.reset_img();
-                                            data.set_edit_state(EditSate::None);
+                                            data.set_edit_state(EditState::None);
                                             data.set_view_state(ViewState::MenuView);
                                         }
                                     },
