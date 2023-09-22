@@ -1,13 +1,12 @@
 mod button_mod;
 mod flex_mod;
 mod image_mod;
-pub mod canvas_mod;
+pub mod canvas_widget;
 use button_mod::druid_mod::*;
-use canvas_mod::canvas::Canvas;
+use canvas_widget::canvas_widget::CanvasWidget;
 use druid::{
     widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
     WidgetExt, WindowId,
-    piet::ImageFormat,
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -127,6 +126,37 @@ impl View {
                         |_, data: &mut AppState, _| data.copy_to_clipboard(),
                     );
 
+                    let button_none = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/none.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::None),
+                    );
+                    let button_free = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Free),
+                    );
+                    let button_line = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/line.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Line),
+                    );
+                    let button_rectangle = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/rectangle.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rectangle),
+                    );
+                    let button_circle = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/circle.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cirle),
+                    );
+
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
@@ -158,6 +188,11 @@ impl View {
 
                     let right_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::End)
+                        .with_flex_child(button_none, 1.0)
+                        .with_flex_child(button_free, 1.0)
+                        .with_flex_child(button_line, 1.0)
+                        .with_flex_child(button_rectangle, 1.0)
+                        .with_flex_child(button_circle, 1.0)
                         .with_flex_child(button_copy, 1.0)
                         .with_flex_child(button_save, 1.0)
                         .with_flex_child(button_options, 1.0);
@@ -224,7 +259,7 @@ impl View {
                     (30.0, 30.0),
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
-                        |_, data, _| Box::new(Canvas::new(data.get_buf_view())),
+                        |_, data, _| Box::new(CanvasWidget::new(data.get_buf_view())),
                     ),
                 );
 

@@ -1,4 +1,7 @@
+pub mod canvas;
+
 use arboard::{Clipboard, ImageData};
+use canvas::canvas::Canvas;
 use chrono::Local;
 use druid::{
     commands,
@@ -98,6 +101,7 @@ pub struct AppState {
     options: Options,
     timer: f64,
     area_to_crop: Area,
+    pub canvas: Canvas,
     img_saved: bool,
 }
 
@@ -113,6 +117,7 @@ impl AppState {
             options: Options::new(),
             timer: 0.0,
             area_to_crop: Area::new(),
+            canvas: Canvas::new(),
             img_saved: false,
         }
     }
@@ -378,12 +383,11 @@ impl AppState {
         });
 
         self.img_saved = true;
-    }
+    } 
 }
 
 pub struct EventHandler {
     keys_pressed: Vector<druid::keyboard_types::Key>,
-    _valid_shortcut: bool,
     start_point: (i32, i32),
     end_point: (i32, i32),
 }
@@ -392,7 +396,6 @@ impl EventHandler {
     pub fn new() -> Self {
         Self {
             keys_pressed: Vector::new(),
-            _valid_shortcut: false,
             start_point: (i32::default(), i32::default()),
             end_point: (i32::default(), i32::default()),
         }
