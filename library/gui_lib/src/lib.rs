@@ -132,6 +132,12 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::None),
                     );
+                    let button_rubber = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rubber),
+                    );
                     let button_free = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
@@ -189,6 +195,7 @@ impl View {
                     let right_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::End)
                         .with_flex_child(button_none, 1.0)
+                        .with_flex_child(button_rubber, 1.0)
                         .with_flex_child(button_free, 1.0)
                         .with_flex_child(button_line, 1.0)
                         .with_flex_child(button_rectangle, 1.0)
@@ -259,7 +266,9 @@ impl View {
                     (30.0, 30.0),
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
-                        |_, data, _| Box::new(CanvasWidget::new(data.get_buf_view())),
+                        |_, data, _| {
+                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())).with_child(ImageMod::new(data.get_buf_view())));
+                        },
                     ),
                 );
 

@@ -1,7 +1,7 @@
 pub mod canvas {
     use std::collections::HashSet;
 
-    use druid::{piet::ImageFormat, Data, ImageBuf};
+    use druid::{im::HashMap, piet::ImageFormat, Data, ImageBuf};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
     pub enum Shape {
@@ -9,6 +9,7 @@ pub mod canvas {
         Cirle,
         Rectangle,
         Free,
+        Rubber,
         None,
     }
 
@@ -16,6 +17,8 @@ pub mod canvas {
     pub struct Canvas {
         shape: Shape,
         init_draw: bool,
+        #[data(eq)]
+        modified_pixel: HashMap<(usize, usize), u32>,
         thickness: usize,
     }
 
@@ -24,6 +27,7 @@ pub mod canvas {
             return Canvas {
                 shape: Shape::Free,
                 init_draw: false,
+                modified_pixel: HashMap::new(),
                 thickness: 3,
             };
         }
@@ -52,83 +56,140 @@ pub mod canvas {
         pub fn get_thickness(&self) -> usize {
             return self.thickness;
         }
-    }
 
-    pub fn draw_shape(
-        mut pixels: Vec<u8>,
-        width: usize,
-        height: usize,
-        start: (usize, usize),
-        end: (usize, usize),
-        color: u32,
-        shape: Shape,
-        thickness: usize,
-    ) -> ImageBuf {
-        let filled_pixels = match shape {
-            Shape::Line => generate_line_coordinates(
-                (start.0 as f32, start.1 as f32),
-                (end.0 as f32, end.1 as f32),
-                thickness,
-            ),
-            Shape::Cirle => generate_circle_coordinates(start, end, thickness),
-            Shape::Rectangle => generate_rectangle_coordinates(start, end, thickness),
-            _ => panic!("Unable to draw a shape"),
-        };
+        pub fn draw_shape(
+            &mut self,
+            mut pixels: Vec<u8>,
+            width: usize,
+            height: usize,
+            start: (usize, usize),
+            end: (usize, usize),
+            color: u32,
+            shape: Shape,
+            thickness: usize,
+        ) -> ImageBuf {
+            let filled_pixels = match shape {
+                Shape::Line => generate_line_coordinates(
+                    (start.0 as f32, start.1 as f32),
+                    (end.0 as f32, end.1 as f32),
+                    thickness,
+                ),
+                Shape::Cirle => generate_circle_coordinates(start, end, thickness),
+                Shape::Rectangle => generate_rectangle_coordinates(start, end, thickness),
+                _ => panic!("Unable to draw a shape"),
+            };
 
-        for (x, y) in filled_pixels {
-            let red = ((color & 0xff000000) >> 24) as u8;
-            let green = ((color & 0x00ff0000) >> 16) as u8;
-            let blue = ((color & 0x0000ff00) >> 8) as u8;
-            let alpha = (color & 0x000000ff) as u8;
+            for (x, y) in filled_pixels {
+                if x < width && y < height {
+                    let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
+                    let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
 
-            let true_x = x * 4;
-            let true_y = y * width * 4;
+                    let mask = 0xff000000;
+                    let mut old_color: u32 = 0;
+                    for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
+                        old_color = (old_color << 8 * i) | pixels[true_x + true_y + i] as u32;
+                        pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
+                            >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
+                            as u8;
+                    }
 
-            if x < width && y < height {
-                pixels[true_x + true_y] = red;
-                pixels[true_x + true_y + 1] = green;
-                pixels[true_x + true_y + 2] = blue;
-                pixels[true_x + true_y + 3] = alpha;
+                    if !self.modified_pixel.contains_key(&(x, y)) {
+                        self.modified_pixel.insert((x, y), old_color);
+                    }
+                }
             }
+
+            let img = ImageBuf::from_raw(pixels, ImageFormat::RgbaSeparate, width, height);
+
+            return img;
         }
 
-        let img = ImageBuf::from_raw(pixels, ImageFormat::RgbaSeparate, width, height);
+        pub fn draw_pixel(
+            &mut self,
+            mut pixels: Vec<u8>,
+            width: usize,
+            height: usize,
+            current: (usize, usize),
+            color: u32,
+            thickness: usize,
+        ) -> ImageBuf {
+            let filled_pixels = generate_free_line_coordinates(current, thickness);
+            
+            for (x, y) in filled_pixels {
+                if x < width && y < height {
+                    let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
+                    let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
 
-        return img;
+                    let mask = 0xff000000;
+                    let mut old_color: u32 = 0;
+                    for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
+                        old_color = (old_color << 8 * i) | pixels[true_x + true_y + i] as u32;
+                        pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
+                            >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
+                            as u8;
+                    }
+
+                    if !self.modified_pixel.contains_key(&(x, y)) {
+                        //println!("px: {:?} -- color: {}", (x, y), old_color);
+                        self.modified_pixel.insert((true_x, true_y), old_color);
+                    }
+                }
+            }
+
+            let img = ImageBuf::from_raw(pixels, ImageFormat::RgbaSeparate, width, height);
+
+            return img;
+        }
+
+        pub fn clear_pixel(
+            &mut self,
+            mut pixels: Vec<u8>,
+            width: usize,
+            height: usize,
+            current: (usize, usize),
+            thickness: usize,
+        ) -> Option<Vec<u8>> {
+            let cleared_pixels = generate_free_line_coordinates(current, thickness);
+            
+            for (x, y) in cleared_pixels {
+                if x < width && y < height {
+                    let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
+                    let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
+                    
+                    if self.modified_pixel.contains_key(&(x, y)) {
+                        let color = self.modified_pixel.get(&(x, y)).unwrap().to_owned();
+
+                        let mask = 0xff000000;
+                        for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
+                            pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
+                                >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
+                                as u8;
+                        }
+
+                        self.modified_pixel.remove(&(x, y));
+
+                        return Some(pixels);
+                    }
+                }
+            }
+
+            return Option::None;
+        }
     }
 
-    pub fn draw_pixel(
-        mut pixels: Vec<u8>,
-        width: usize,
-        height: usize,
+    pub fn generate_free_line_coordinates(
         current: (usize, usize),
-        color: u32,
         thickness: usize,
-    ) -> ImageBuf {
-        let mut filled_pixels = Vec::new();
+    ) -> HashSet<(usize, usize)> {
+        let mut filled_pixels = HashSet::new();
 
         for x in (current.0 - thickness / 2)..=(current.0 + thickness / 2) {
             for y in (current.1 - thickness / 2)..=(current.1 + thickness / 2) {
-                filled_pixels.push((x, y));
+                filled_pixels.insert((x, y));
             }
         }
 
-        for (x, y) in filled_pixels {
-            if x < width && y < height {
-                let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
-                let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
-
-                let mask = 0xff000000;
-                for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
-                    pixels[true_x + true_y + i] = ((color & (mask >> i*8)) >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
-                        as u8;
-                }
-            }
-        }
-
-        let img = ImageBuf::from_raw(pixels, ImageFormat::RgbaSeparate, width, height);
-
-        return img;
+        return filled_pixels;
     }
 
     pub fn generate_line_coordinates(

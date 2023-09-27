@@ -8,9 +8,9 @@ use druid::{
     im::Vector,
     image::{ImageBuffer, Rgba},
     keyboard_types::Key,
-    widget::{Controller, Flex},
-    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Widget,
-    WidgetExt, WindowDesc,
+    widget::{Controller, Flex, Painter},
+    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Rect,
+    RenderContext, Widget, WidgetExt, WindowDesc,
 };
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
@@ -383,7 +383,40 @@ impl AppState {
         });
 
         self.img_saved = true;
-    } 
+    }
+
+    pub fn new_painter(&self) -> Painter<AppState> {
+        let painter = Painter::new(|ctx, data: &AppState, _| {
+            let bound = ctx.size().to_rect();
+            let pixels = data.buf_view.raw_pixels().to_vec();
+            let mut img_colors = Vec::new();
+
+            println!("Sono in paint: {}", pixels.len());
+            println!("rect: {:?}", bound);
+            for i in (0..pixels.len() - 4).step_by(4) {
+                let mut color: u32 = 0;
+                color = (color << 8) | pixels[i] as u32;
+                color = (color << 8) | pixels[i + 1] as u32;
+                color = (color << 8) | pixels[i + 2] as u32;
+                color = (color << 8) | pixels[i + 3] as u32;
+                
+                img_colors.push(Color::Rgba32(color));
+            }
+
+            let mut i = 0;
+            for x in (bound.x0 as usize)..=((bound.x1.floor() - 1.0) as usize) {
+                for y in (bound.y0 as usize)..=((bound.y1.floor() - 1.0) as usize) {
+                    let pixel = Rect::new(x as f64, y as f64, (x+1) as f64, (y+1) as f64);
+                    ctx.fill(pixel, &img_colors[i]);
+                    i = i +1;
+                }
+            }
+
+            //ctx.fill(Rect::new(10.0,10.0,100.0,100.0), &Color::from_rgba32_u32(0xff0000ff))
+        });
+
+        return painter;
+    }
 }
 
 pub struct EventHandler {
@@ -415,9 +448,10 @@ impl AppDelegate<AppState> for EventHandler {
             druid::Event::Timer(ref timer_event) => {
                 if data.get_screenshot_token() == timer_event.into_raw() {
                     match data.get_screenshot_mode() {
-                        ScreenshotMode::Fullscreen => {
-                            data.set_buf(take_screenshot_with_delay(data.timer, data.get_screen_index()).unwrap())
-                        }
+                        ScreenshotMode::Fullscreen => data.set_buf(
+                            take_screenshot_with_delay(data.timer, data.get_screen_index())
+                                .unwrap(),
+                        ),
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
                                 data.set_buf(

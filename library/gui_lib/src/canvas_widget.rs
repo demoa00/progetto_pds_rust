@@ -53,6 +53,9 @@ pub mod canvas_widget {
                     Shape::Free => {
                         data.canvas.set_init_draw(true);
                     }
+                    Shape::Rubber => {
+                        data.canvas.set_init_draw(true);
+                    }
                     Shape::None => {}
                     _ => {
                         self.start_point = (
@@ -63,6 +66,9 @@ pub mod canvas_widget {
                 },
                 Event::MouseUp(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {
+                        data.canvas.set_init_draw(false);
+                    }
+                    Shape::Rubber => {
                         data.canvas.set_init_draw(false);
                     }
                     Shape::None => {}
@@ -89,7 +95,7 @@ pub mod canvas_widget {
                         let w = buf.width();
                         let h = buf.height();
 
-                        let buf = draw_shape(
+                        let buf = data.canvas.draw_shape(
                             buf.raw_pixels().to_vec(),
                             w,
                             h,
@@ -104,7 +110,10 @@ pub mod canvas_widget {
                     }
                 },
                 Event::MouseMove(mouse_event) => {
-                    if data.canvas.get_shape() == Shape::Free && data.canvas.get_init_draw() == true
+                    let shape = data.canvas.get_shape();
+                    
+                    if (shape == Shape::Free || shape == Shape::Rubber)
+                        && data.canvas.get_init_draw() == true
                     {
                         let image_size = self.image_data.size();
 
@@ -121,14 +130,32 @@ pub mod canvas_widget {
                         let w = buf.width();
                         let h = buf.height();
 
-                        let buf = draw_pixel(
-                            buf.raw_pixels().to_vec(),
-                            w,
-                            h,
-                            current_point,
-                            0xff0000ff,
-                            data.canvas.get_thickness(),
-                        );
+                        let buf = if shape == Shape::Free {
+                            data.canvas.draw_pixel(
+                                buf.raw_pixels().to_vec(),
+                                w,
+                                h,
+                                current_point,
+                                0xff0000ff,
+                                data.canvas.get_thickness(),
+                            )
+                        } else {
+                            match data.canvas.clear_pixel(
+                                buf.raw_pixels().to_vec(),
+                                w,
+                                h,
+                                current_point,
+                                data.canvas.get_thickness(),
+                            ) {
+                                Some(pixels) => ImageBuf::from_raw(
+                                    pixels,
+                                    druid::piet::ImageFormat::RgbaSeparate,
+                                    w,
+                                    h,
+                                ),
+                                _ => buf,
+                            }
+                        };
 
                         data.set_buf(buf);
                     }
