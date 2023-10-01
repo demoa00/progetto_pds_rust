@@ -195,14 +195,18 @@ pub mod canvas_widget {
             // in the size exactly. If it is unconstrained by both width and height take the size of
             // the image.
             let max = bc.max();
+
             let image_size = self.image_size();
             let size = if bc.is_width_bounded() && !bc.is_height_bounded() {
+                println!("1");
                 let ratio = max.width / image_size.width;
                 Size::new(max.width, ratio * image_size.height)
             } else if bc.is_height_bounded() && !bc.is_width_bounded() {
+                println!("2");
                 let ratio = max.height / image_size.height;
                 Size::new(ratio * image_size.width, max.height)
             } else {
+                println!("3");
                 bc.constrain(image_size)
             };
             self.widget_size = size;

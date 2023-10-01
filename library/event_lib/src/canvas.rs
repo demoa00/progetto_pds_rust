@@ -28,7 +28,7 @@ pub mod canvas {
                 shape: Shape::Free,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
-                thickness: 3,
+                thickness: 15,
             };
         }
 
@@ -87,14 +87,14 @@ pub mod canvas {
                     let mask = 0xff000000;
                     let mut old_color: u32 = 0;
                     for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
-                        old_color = (old_color << 8 * i) | pixels[true_x + true_y + i] as u32;
+                        old_color = (old_color << 8) | pixels[true_x + true_y + i] as u32;
                         pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
                             >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
                             as u8;
                     }
 
-                    if !self.modified_pixel.contains_key(&(x, y)) {
-                        self.modified_pixel.insert((x, y), old_color);
+                    if !self.modified_pixel.contains_key(&(true_x, true_y)) {
+                        self.modified_pixel.insert((true_x, true_y), old_color);
                     }
                 }
             }
@@ -114,7 +114,7 @@ pub mod canvas {
             thickness: usize,
         ) -> ImageBuf {
             let filled_pixels = generate_free_line_coordinates(current, thickness);
-            
+
             for (x, y) in filled_pixels {
                 if x < width && y < height {
                     let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
@@ -123,14 +123,13 @@ pub mod canvas {
                     let mask = 0xff000000;
                     let mut old_color: u32 = 0;
                     for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
-                        old_color = (old_color << 8 * i) | pixels[true_x + true_y + i] as u32;
+                        old_color = (old_color << 8) | pixels[true_x + true_y + i] as u32;
                         pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
                             >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
                             as u8;
                     }
 
-                    if !self.modified_pixel.contains_key(&(x, y)) {
-                        //println!("px: {:?} -- color: {}", (x, y), old_color);
+                    if !self.modified_pixel.contains_key(&(true_x, true_y)) {
                         self.modified_pixel.insert((true_x, true_y), old_color);
                     }
                 }
@@ -150,14 +149,21 @@ pub mod canvas {
             thickness: usize,
         ) -> Option<Vec<u8>> {
             let cleared_pixels = generate_free_line_coordinates(current, thickness);
-            
+            let mut modified = false;
+
             for (x, y) in cleared_pixels {
                 if x < width && y < height {
                     let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
                     let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
-                    
-                    if self.modified_pixel.contains_key(&(x, y)) {
-                        let color = self.modified_pixel.get(&(x, y)).unwrap().to_owned();
+
+                    if self.modified_pixel.contains_key(&(true_x, true_y)) {
+                        modified = true;
+
+                        let color = self
+                            .modified_pixel
+                            .get(&(true_x, true_y))
+                            .unwrap()
+                            .to_owned();
 
                         let mask = 0xff000000;
                         for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
@@ -166,14 +172,16 @@ pub mod canvas {
                                 as u8;
                         }
 
-                        self.modified_pixel.remove(&(x, y));
-
-                        return Some(pixels);
+                        self.modified_pixel.remove(&(true_x, true_y));
                     }
                 }
             }
 
-            return Option::None;
+            if modified {
+                return Some(pixels);
+            } else {
+                return Option::None;
+            }
         }
     }
 
@@ -197,6 +205,8 @@ pub mod canvas {
         mut end: (f32, f32),
         thickness: usize,
     ) -> HashSet<(usize, usize)> {
+        end.0 = end.0 + thickness as f32;
+
         let dx = end.0 - start.0;
         let dy = end.1 - start.1;
 

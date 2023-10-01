@@ -6,7 +6,7 @@ use button_mod::druid_mod::*;
 use canvas_widget::canvas_widget::CanvasWidget;
 use druid::{
     widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
-    WidgetExt, WindowId,
+    WidgetExt, WindowId, Command, Selector, Target,
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -16,7 +16,6 @@ use core::panic;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use native_dialog::MessageDialog;
-//use native_dialog::MessageType::Warning;
 
 const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
@@ -29,7 +28,9 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
         Menu::new(LocalizedString::new("common-menu-file-menu"))
             .entry(
                 MenuItem::new("New screenshot")
-                    .on_activate(|_ctx, _data: &mut AppState, _| println!("!!!"))
+                    .on_activate(move |ctx, _data: &mut AppState, _| {
+                        ctx.submit_command(Command::new(Selector::new("mario"), (), Target::Auto));
+                    })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts()
                             .extract_value_for_menu(Action::NewScreenshot)
@@ -38,14 +39,12 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
-                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
-                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
@@ -267,7 +266,7 @@ impl View {
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
                         |_, data, _| {
-                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())).with_child(ImageMod::new(data.get_buf_view())));
+                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())));
                         },
                     ),
                 );
@@ -458,8 +457,10 @@ impl MenuOption {
 
 fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
-    win.set_window_state(druid::WindowState::Minimized);
-
+    if win.get_window_state() != druid::WindowState::Minimized{
+        win.set_window_state(druid::WindowState::Minimized);    
+    }
+    
     data.reset_img();
     data.set_screenshot_mode(mode);
 
@@ -476,24 +477,16 @@ impl CloseWindow {
 }
 
 impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
-    /* fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
+    fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
         match event {
-            druid::Event::WindowCloseRequested => {
-                if !data.is_img_saved() && !data.get_buf_view().raw_pixels().is_empty() {
-                    match MessageDialog::new().set_title("Are you sure you want to close without saving the changes?")
-                                                .set_text("If you confirm all changes made and the image will be deleted")
-                                                .set_type(Warning)
-                                                .show_confirm() {
-                        Ok(confirm) => {
-                            if !confirm {
-                                todo!();
-                            }
-                        },
-                        Err(e) => panic!("{}", e),
-                    }
+            druid::Event::Command(ref c) => {
+                if c.is(Selector::<()>::new("mario")){
+                    prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
                 }
+
+                child.event(ctx, event, data, env)
             },
             _ => child.event(ctx, event, data, env)
         }
-    } */
+    }
 }
