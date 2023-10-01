@@ -1,13 +1,16 @@
+pub mod canvas;
+
 use arboard::{Clipboard, ImageData};
+use canvas::canvas::Canvas;
 use chrono::Local;
 use druid::{
     commands,
     im::Vector,
     image::{ImageBuffer, Rgba},
     keyboard_types::Key,
-    widget::{Controller, Flex},
-    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Widget,
-    WidgetExt, WindowDesc,
+    widget::{Controller, Flex, Painter},
+    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Rect,
+    RenderContext, Widget, WidgetExt, WindowDesc,
 };
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
@@ -96,6 +99,7 @@ pub struct AppState {
     options: Options,
     timer: f64,
     area_to_crop: Area,
+    pub canvas: Canvas,
     img_saved: bool,
 }
 
@@ -111,6 +115,7 @@ impl AppState {
             options: Options::new(),
             timer: 0.0,
             area_to_crop: Area::new(),
+            canvas: Canvas::new(),
             img_saved: false,
         }
     }
@@ -383,11 +388,43 @@ impl AppState {
 
         self.img_saved = true;
     }
+
+    pub fn new_painter(&self) -> Painter<AppState> {
+        let painter = Painter::new(|ctx, data: &AppState, _| {
+            let bound = ctx.size().to_rect();
+            let pixels = data.buf_view.raw_pixels().to_vec();
+            let mut img_colors = Vec::new();
+
+            println!("Sono in paint: {}", pixels.len());
+            println!("rect: {:?}", bound);
+            for i in (0..pixels.len() - 4).step_by(4) {
+                let mut color: u32 = 0;
+                color = (color << 8) | pixels[i] as u32;
+                color = (color << 8) | pixels[i + 1] as u32;
+                color = (color << 8) | pixels[i + 2] as u32;
+                color = (color << 8) | pixels[i + 3] as u32;
+                
+                img_colors.push(Color::Rgba32(color));
+            }
+
+            let mut i = 0;
+            for x in (bound.x0 as usize)..=((bound.x1.floor() - 1.0) as usize) {
+                for y in (bound.y0 as usize)..=((bound.y1.floor() - 1.0) as usize) {
+                    let pixel = Rect::new(x as f64, y as f64, (x+1) as f64, (y+1) as f64);
+                    ctx.fill(pixel, &img_colors[i]);
+                    i = i +1;
+                }
+            }
+
+            //ctx.fill(Rect::new(10.0,10.0,100.0,100.0), &Color::from_rgba32_u32(0xff0000ff))
+        });
+
+        return painter;
+    }
 }
 
 pub struct EventHandler {
     keys_pressed: Vector<druid::keyboard_types::Key>,
-    _valid_shortcut: bool,
     start_point: (i32, i32),
     end_point: (i32, i32),
 }
@@ -396,7 +433,6 @@ impl EventHandler {
     pub fn new() -> Self {
         Self {
             keys_pressed: Vector::new(),
-            _valid_shortcut: false,
             start_point: (i32::default(), i32::default()),
             end_point: (i32::default(), i32::default()),
         }
