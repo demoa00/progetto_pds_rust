@@ -1,6 +1,5 @@
 mod button_mod;
 mod flex_mod;
-mod image_mod;
 pub mod canvas_widget;
 use button_mod::druid_mod::*;
 use canvas_widget::canvas_widget::CanvasWidget;
@@ -10,7 +9,6 @@ use druid::{
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
-use image_mod::druid_mod::ImageMod;
 use shortcut_lib::*;
 use core::panic;
 use std::time::Duration;
@@ -100,7 +98,6 @@ impl View {
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                         },
                     );
-
                     let button_new_screenshot_cropped = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap(),
@@ -117,7 +114,6 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| data.save_img(),
                     );
-
                     let button_copy = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
@@ -129,13 +125,25 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/none.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::None),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cut),
                     );
                     let button_rubber = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rubber),
+                    );
+                    let button_fill = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/fill.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {
+                            if data.canvas.get_fill(){
+                                data.canvas.set_fill(false);
+                            }else{
+                                data.canvas.set_fill(true);
+                            }
+                        },
                     );
                     let button_free = TransparentButton::with_bg(
                         Image::new(
@@ -196,6 +204,7 @@ impl View {
                         .main_axis_alignment(druid::widget::MainAxisAlignment::End)
                         .with_flex_child(button_none, 1.0)
                         .with_flex_child(button_rubber, 1.0)
+                        .with_flex_child(button_fill, 1.0)
                         .with_flex_child(button_free, 1.0)
                         .with_flex_child(button_line, 1.0)
                         .with_flex_child(button_rectangle, 1.0)
@@ -458,6 +467,7 @@ impl MenuOption {
 
 fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
     let mut win = ctx.window().clone();
+    
     if win.get_window_state() != druid::WindowState::Minimized{
         win.set_window_state(druid::WindowState::Minimized);    
     }

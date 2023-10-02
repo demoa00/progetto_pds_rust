@@ -10,6 +10,7 @@ pub mod canvas {
         Rectangle,
         Free,
         Rubber,
+        Cut,
         None,
     }
 
@@ -20,6 +21,7 @@ pub mod canvas {
         #[data(eq)]
         modified_pixel: HashMap<(usize, usize), u32>,
         thickness: usize,
+        fill: bool,
     }
 
     impl Canvas {
@@ -28,7 +30,8 @@ pub mod canvas {
                 shape: Shape::Free,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
-                thickness: 15,
+                thickness: 5,
+                fill: false,
             };
         }
 
@@ -57,6 +60,14 @@ pub mod canvas {
             return self.thickness;
         }
 
+        pub fn set_fill(&mut self, val: bool) {
+            self.fill = val;
+        }
+
+        pub fn get_fill(&self) -> bool {
+            return self.fill;
+        }
+
         pub fn draw_shape(
             &mut self,
             mut pixels: Vec<u8>,
@@ -74,8 +85,20 @@ pub mod canvas {
                     (end.0 as f32, end.1 as f32),
                     thickness,
                 ),
-                Shape::Cirle => generate_circle_coordinates(start, end, thickness),
-                Shape::Rectangle => generate_rectangle_coordinates(start, end, thickness),
+                Shape::Cirle => {
+                    if self.fill {
+                        generate_fill_circle_coordinates(start, end)
+                    } else {
+                        generate_empty_circle_coordinates(start, end, thickness)
+                    }
+                }
+                Shape::Rectangle => {
+                    if self.fill {
+                        generate_fill_rectangle_coordinates(start, end)
+                    } else {
+                        generate_empty_rectangle_coordinates(start, end, thickness)
+                    }
+                }
                 _ => panic!("Unable to draw a shape"),
             };
 
@@ -205,8 +228,6 @@ pub mod canvas {
         mut end: (f32, f32),
         thickness: usize,
     ) -> HashSet<(usize, usize)> {
-        end.0 = end.0 + thickness as f32;
-
         let dx = end.0 - start.0;
         let dy = end.1 - start.1;
 
@@ -236,14 +257,36 @@ pub mod canvas {
 
         let mut filled_pixels = HashSet::new();
 
-        if slope > 1.0 {
+        if slope == f32::INFINITY {
+            // The line is vertical
+            // The thickness of straight is on the horizontal
+            let x = (start.0 + (end.0 - start.0) / 2.0) as usize;
+            let y_1 = start.1;
+            let y_2 = end.1;
+
+            let min_x = match x.checked_sub(thickness / 2) {
+                Some(sub) => sub,
+                None => 0,
+            };
+
+            for x_th in min_x..=(x + thickness / 2) {
+                for y in (y_1 as usize)..(y_2 as usize) {
+                    filled_pixels.insert((x_th, y));
+                }
+            }
+        } else if slope > 1.0 {
             // The thickness of straight is on the horizontal
             for i in 0..(raw_filled_pixels.len() - 1) {
                 let x = raw_filled_pixels[i].0;
                 let y_1 = raw_filled_pixels[i].1;
                 let y_2 = raw_filled_pixels[i + 1].1;
 
-                for x_th in (x - thickness / 2)..=(x + thickness / 2) {
+                let min_x = match x.checked_sub(thickness / 2) {
+                    Some(sub) => sub,
+                    None => 0,
+                };
+
+                for x_th in min_x..=(x + thickness / 2) {
                     for y in y_1..y_2 {
                         filled_pixels.insert((x_th, y));
                     }
@@ -254,7 +297,12 @@ pub mod canvas {
             raw_filled_pixels.iter().for_each(|point| {
                 let (x, y) = point.to_owned();
 
-                for y_th in (y - thickness / 2)..=(y + thickness / 2) {
+                let min_y = match y.checked_sub(thickness / 2) {
+                    Some(sub) => sub,
+                    None => 0,
+                };
+
+                for y_th in min_y..=(y + thickness / 2) {
                     filled_pixels.insert((x, y_th));
                 }
             });
@@ -276,7 +324,7 @@ pub mod canvas {
         return filled_pixels;
     }
 
-    pub fn generate_rectangle_coordinates(
+    pub fn generate_empty_rectangle_coordinates(
         mut start: (usize, usize),
         mut end: (usize, usize),
         thickness: usize,
@@ -311,7 +359,7 @@ pub mod canvas {
         return filled_pixels;
     }
 
-    fn generate_circle_coordinates(
+    fn generate_empty_circle_coordinates(
         mut start: (usize, usize),
         mut end: (usize, usize),
         thickness: usize,
@@ -350,6 +398,74 @@ pub mod canvas {
                 .ceil() as usize;
 
                 if distance <= radius && distance >= (radius - thickness) {
+                    filled_pixels.insert((x, y));
+                }
+            }
+        }
+
+        return filled_pixels;
+    }
+
+    fn generate_fill_rectangle_coordinates(
+        mut start: (usize, usize),
+        mut end: (usize, usize),
+    ) -> HashSet<(usize, usize)> {
+        if start.0 > end.0 {
+            let tmp = start.0;
+            start.0 = end.0;
+            end.0 = tmp;
+        }
+        if start.1 > end.1 {
+            let tmp = start.1;
+            start.1 = end.1;
+            end.1 = tmp;
+        }
+
+        let mut filled_pixels = HashSet::new();
+
+        for y in start.1..=end.1 {
+            for x in start.0..=end.0 {
+                filled_pixels.insert((x, y));
+            }
+        }
+
+        return filled_pixels;
+    }
+
+    fn generate_fill_circle_coordinates(
+        mut start: (usize, usize),
+        mut end: (usize, usize),
+    ) -> HashSet<(usize, usize)> {
+        if start.0 > end.0 {
+            let tmp = start.0;
+            start.0 = end.0;
+            end.0 = tmp;
+        }
+        if start.1 > end.1 {
+            let tmp = start.1;
+            start.1 = end.1;
+            end.1 = tmp;
+        }
+
+        if end.0 - start.0 < end.1 - start.1 {
+            end.0 = end.0 + ((end.1 - start.1) - (end.0 - start.0));
+        } else {
+            end.1 = end.1 + ((end.0 - start.0) - (end.1 - start.1));
+        }
+
+        let center = ((start.0 + end.0) / 2, (start.1 + end.1) / 2);
+        let radius = (end.0 - start.0) / 2;
+
+        let mut filled_pixels = HashSet::new();
+
+        for x in start.0..=end.0 {
+            for y in start.1..=end.1 {
+                let distance = ((center.0 as f32 - x as f32).powf(2.0)
+                    + (center.1 as f32 - y as f32).powf(2.0))
+                .sqrt()
+                .ceil() as usize;
+
+                if distance <= radius {
                     filled_pixels.insert((x, y));
                 }
             }

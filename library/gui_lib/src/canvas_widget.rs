@@ -5,7 +5,7 @@ pub mod canvas_widget {
         Affine, BoxConstraints, Env, Event, ImageBuf, LayoutCtx, PaintCtx, RenderContext, Size,
         Widget,
     };
-    use event_lib::{canvas::canvas::*, AppState};
+    use event_lib::{canvas::canvas::*, AppState, EditState};
 
     pub struct CanvasWidget {
         image_data: ImageBuf,
@@ -71,6 +71,28 @@ pub mod canvas_widget {
                     Shape::Rubber => {
                         data.canvas.set_init_draw(false);
                     }
+                    Shape::Cut => {
+                        self.end_point = (
+                            mouse_event.pos.x.ceil() as usize,
+                            mouse_event.pos.y.ceil() as usize,
+                        );
+
+                        let image_size = self.image_data.size();
+
+                        let ratio = image_size.width / self.widget_size.width;
+
+                        let start_point = (
+                            ((self.start_point.0 as f64 * ratio) as i32),
+                            ((self.start_point.1 as f64 * ratio) as i32),
+                        );
+                        let end_point = (
+                            ((self.end_point.0 as f64 * ratio) as i32),
+                            ((self.end_point.1 as f64 * ratio) as i32),
+                        );
+
+                        data.highlight_area(start_point, end_point);
+                        data.set_edit_state(EditState::ImageResize);
+                    }
                     Shape::None => {}
                     _ => {
                         self.end_point = (
@@ -111,7 +133,7 @@ pub mod canvas_widget {
                 },
                 Event::MouseMove(mouse_event) => {
                     let shape = data.canvas.get_shape();
-                    
+
                     if (shape == Shape::Free || shape == Shape::Rubber)
                         && data.canvas.get_init_draw() == true
                     {
@@ -145,7 +167,7 @@ pub mod canvas_widget {
                                 w,
                                 h,
                                 current_point,
-                                data.canvas.get_thickness(),
+                                data.canvas.get_thickness() + 8,
                             ) {
                                 Some(pixels) => ImageBuf::from_raw(
                                     pixels,
@@ -184,33 +206,31 @@ pub mod canvas_widget {
 
         fn layout(
             &mut self,
-            _layout_ctx: &mut LayoutCtx,
+            layout_ctx: &mut LayoutCtx,
             bc: &BoxConstraints,
             _data: &AppState,
             _env: &Env,
         ) -> Size {
             bc.debug_check("Image");
 
-            // If either the width or height is constrained calculate a value so that the image fits
-            // in the size exactly. If it is unconstrained by both width and height take the size of
-            // the image.
-            let max = bc.max();
-
+            let win_size = layout_ctx.window().get_size();
             let image_size = self.image_size();
-            let size = if bc.is_width_bounded() && !bc.is_height_bounded() {
-                println!("1");
-                let ratio = max.width / image_size.width;
-                Size::new(max.width, ratio * image_size.height)
-            } else if bc.is_height_bounded() && !bc.is_width_bounded() {
-                println!("2");
-                let ratio = max.height / image_size.height;
-                Size::new(ratio * image_size.width, max.height)
+
+            let w = win_size.width - 74.0;
+            let h = win_size.height - 148.0;
+
+            let w_ratio = w / image_size.width;
+            let h_ratio = h / image_size.height;
+
+            let size = if w_ratio * image_size.height > h {
+                Size::new(image_size.width * h_ratio, h)
             } else {
-                println!("3");
-                bc.constrain(image_size)
+                Size::new(w, image_size.height * w_ratio)
             };
+
             self.widget_size = size;
-            size
+
+            return size;
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {
