@@ -99,6 +99,7 @@ pub struct AppState {
     options: Options,
     timer: f64,
     area_to_crop: Area,
+    #[data(ignore)]
     pub canvas: Canvas,
     img_saved: bool,
 }
@@ -403,16 +404,16 @@ impl AppState {
                 color = (color << 8) | pixels[i + 1] as u32;
                 color = (color << 8) | pixels[i + 2] as u32;
                 color = (color << 8) | pixels[i + 3] as u32;
-                
+
                 img_colors.push(Color::Rgba32(color));
             }
 
             let mut i = 0;
             for x in (bound.x0 as usize)..=((bound.x1.floor() - 1.0) as usize) {
                 for y in (bound.y0 as usize)..=((bound.y1.floor() - 1.0) as usize) {
-                    let pixel = Rect::new(x as f64, y as f64, (x+1) as f64, (y+1) as f64);
+                    let pixel = Rect::new(x as f64, y as f64, (x + 1) as f64, (y + 1) as f64);
                     ctx.fill(pixel, &img_colors[i]);
-                    i = i +1;
+                    i = i + 1;
                 }
             }
 

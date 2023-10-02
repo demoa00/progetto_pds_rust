@@ -1,7 +1,6 @@
 pub mod canvas {
-    use std::collections::HashSet;
-
     use druid::{im::HashMap, piet::ImageFormat, Data, ImageBuf};
+    use std::collections::HashSet;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
     pub enum Shape {
@@ -214,8 +213,17 @@ pub mod canvas {
     ) -> HashSet<(usize, usize)> {
         let mut filled_pixels = HashSet::new();
 
-        for x in (current.0 - thickness / 2)..=(current.0 + thickness / 2) {
-            for y in (current.1 - thickness / 2)..=(current.1 + thickness / 2) {
+        let min_x = match current.0.checked_sub(thickness / 2) {
+            Some(sub) => sub,
+            None => 0,
+        };
+        let min_y = match current.1.checked_sub(thickness / 2) {
+            Some(sub) => sub,
+            None => 0,
+        };
+
+        for x in min_x..=(current.0 + thickness / 2) {
+            for y in min_y..=(current.1 + thickness / 2) {
                 filled_pixels.insert((x, y));
             }
         }

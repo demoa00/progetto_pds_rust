@@ -61,7 +61,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
 pub fn build_root_widget() -> impl Widget<AppState> {
     let main_view = View::new(ViewState::MainView);
     let menu_view = View::new(ViewState::MenuView);
-    let close_controller = CloseWindow::new();
+    let close_controller = WindowController::new();
 
     Flex::column()
         .with_child(main_view.top_bar)
@@ -479,15 +479,15 @@ fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: 
     data.set_screenshot_token(token.into_raw());
 }
 
-struct CloseWindow;
+struct WindowController;
 
-impl CloseWindow {
+impl WindowController {
     fn new() -> Self{
-        CloseWindow
+        WindowController
     }
 }
 
-impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
+impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
     fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
         match event {
             druid::Event::Command(ref c) => {
@@ -497,6 +497,9 @@ impl<W: Widget<AppState>> Controller<AppState, W> for CloseWindow {
 
                 child.event(ctx, event, data, env)
             },
+            druid::Event::WindowSize(_) => {
+                child.event(ctx, event, data, env)
+            }
             _ => child.event(ctx, event, data, env)
         }
     }

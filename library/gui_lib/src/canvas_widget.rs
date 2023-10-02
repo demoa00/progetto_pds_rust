@@ -202,6 +202,7 @@ pub mod canvas_widget {
             _data: &AppState,
             _env: &druid::Env,
         ) {
+            
         }
 
         fn layout(
@@ -211,6 +212,8 @@ pub mod canvas_widget {
             _data: &AppState,
             _env: &Env,
         ) -> Size {
+            println!("layout");
+
             bc.debug_check("Image");
 
             let win_size = layout_ctx.window().get_size();
@@ -234,6 +237,8 @@ pub mod canvas_widget {
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {
+            println!("paint");
+
             let image_size = self.image_size();
             let parent = ctx.size();
             let fit_box = image_size;
