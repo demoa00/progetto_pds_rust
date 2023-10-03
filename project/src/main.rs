@@ -10,7 +10,7 @@ fn main() {
     let main_window = WindowDesc::new(build_root_widget())
         .title(WINDOW_TITLE)
         .menu(|winid, data, _| build_menu(winid, data))
-        .window_size((800.0, 600.0));
+        .window_size((1000.0, 600.0));
 
     AppLauncher::with_window(main_window)
         .delegate(EventHandler::new())

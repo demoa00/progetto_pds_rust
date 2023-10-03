@@ -17,6 +17,7 @@ pub mod canvas {
     #[derive(Debug, Clone)]
     pub struct Canvas {
         shape: Shape,
+        // color
         init_draw: bool,
         pub modified_pixel: HashMap<(usize, usize), u32>,
         pub buf_point: CircularBuffer<2, (usize, usize)>,
@@ -189,7 +190,7 @@ pub mod canvas {
         let dx = end.0 - start.0;
         let dy = end.1 - start.1;
 
-        if start == end{
+        if start == end {
             return HashSet::new();
         }
 

@@ -107,7 +107,6 @@ impl View {
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                         },
                     );
-
                     let button_save = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap(),
@@ -120,56 +119,12 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| data.copy_to_clipboard(),
                     );
-
-                    let button_none = TransparentButton::with_bg(
+                    let button_drawing = FlexMod::row(true).with_flex_child(TransparentButton::with_bg(
                         Image::new(
-                            ImageBuf::from_file(format!("{}/none.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cut),
-                    );
-                    let button_rubber = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rubber),
-                    );
-                    let button_fill = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/fill.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| {
-                            if data.canvas.get_fill(){
-                                data.canvas.set_fill(false);
-                            }else{
-                                data.canvas.set_fill(true);
-                            }
-                        },
-                    );
-                    let button_free = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Free),
-                    );
-                    let button_line = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/line.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Line),
-                    );
-                    let button_rectangle = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/rectangle.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rectangle),
-                    );
-                    let button_circle = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/circle.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cirle),
-                    );
-
+                        ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
+                        ), 
+                        |_, data: &mut AppState, _| data.set_edit_state(EditState::Drawing),
+                    ), 1.0).visible_if(|data: &AppState| data.get_edit_state() != EditState::Drawing);
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
@@ -201,19 +156,84 @@ impl View {
                         .must_fill_main_axis(false);
 
                     let right_part = Flex::row()
-                        .main_axis_alignment(druid::widget::MainAxisAlignment::End)
-                        .with_flex_child(button_none, 1.0)
-                        .with_flex_child(button_rubber, 1.0)
-                        .with_flex_child(button_fill, 1.0)
-                        .with_flex_child(button_free, 1.0)
-                        .with_flex_child(button_line, 1.0)
-                        .with_flex_child(button_rectangle, 1.0)
-                        .with_flex_child(button_circle, 1.0)
+                        .main_axis_alignment(druid::widget::MainAxisAlignment::End) 
+                        .with_flex_child(button_drawing, 1.0)
                         .with_flex_child(button_copy, 1.0)
                         .with_flex_child(button_save, 1.0)
                         .with_flex_child(button_options, 1.0);
 
-                    Split::columns(left_part, right_part).bar_size(0.0)
+                    Split::columns(left_part, right_part).bar_size(0.0).split_point(0.8)
+                };
+
+                let drawing_top_bar = {
+                    let button_red_color = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/paint_red.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {}
+                    );
+                    let button_green_color = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/paint_green.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {}
+                    );
+                    let button_blue_color = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/paint_blu.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| {}
+                    );
+
+                    let button_none = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.set_edit_state(EditState::None),
+                    );
+                    let button_rubber = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rubber),
+                    );
+                    let button_fill = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/fill.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_fill(!data.canvas.get_fill())
+                    );
+                    let button_free = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Free),
+                    );
+                    let button_line = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/line.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Line),
+                    );
+                    let button_rectangle = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/rectangle.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rectangle),
+                    );
+                    let button_circle = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/circle.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cirle),
+                    );
+
+                    FlexMod::row(false).with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_rubber).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_none).padding((20.0,0.0)))
+                    .visible_if(|data: &AppState| data.get_edit_state() == EditState::Drawing).center().border(Color::BLACK, 2.0)
                 };
 
                 let resize_top_bar = {
@@ -223,7 +243,7 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| {
                             data.resize_img();
-                            data.set_edit_state(EditState::None);
+                            data.set_edit_state(EditState::Drawing);
                         },
                     );
 
@@ -249,6 +269,7 @@ impl View {
                 FlexMod::column(true)
                     .with_child(normal_top_bar)
                     .with_child(resize_top_bar)
+                    .with_child(drawing_top_bar)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
             }
             ViewState::MenuView => {

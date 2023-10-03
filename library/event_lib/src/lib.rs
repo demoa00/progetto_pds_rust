@@ -25,6 +25,7 @@ pub enum EditState {
     PathEditing,
     MouseDetecting,
     ImageResize,
+    Drawing,
     None,
 }
 
