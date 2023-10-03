@@ -48,6 +48,11 @@ pub mod canvas_widget {
             data: &mut AppState,
             _env: &druid::Env,
         ) {
+            /*let edit_state = data.get_edit_state();
+            if edit_state != EditState::Drawing && edit_state != EditState::ImageResize {
+                //return;
+            }*/
+
             match event {
                 Event::MouseDown(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {

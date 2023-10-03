@@ -154,3 +154,7 @@ pub fn take_screenshot_with_delay(time: f64, current_screen: usize) -> Option<Im
 
     return take_screenshot(current_screen);
 }
+
+pub fn number_of_screens() -> usize {
+    Screen::all().unwrap().len()
+}

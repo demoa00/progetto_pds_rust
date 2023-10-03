@@ -46,7 +46,6 @@ struct Options {
     save_path: SavePath,
     extension: String,
     shortcuts: Shortcuts,
-    screen_index: usize,
 }
 
 impl Options {
@@ -55,7 +54,6 @@ impl Options {
             save_path: SavePath::new(),
             extension: String::from_str("jpg").unwrap(),
             shortcuts: Shortcuts::new(),
-            screen_index: 0,
         }
     }
 
@@ -101,6 +99,7 @@ pub struct AppState {
     screenshot_mode: (ScreenshotMode, u64),
     options: Options,
     timer: f64,
+    screen_index: usize,
     #[data(ignore)]
     area_to_crop: Area,
     #[data(ignore)]
@@ -120,6 +119,7 @@ impl AppState {
             screenshot_mode: (ScreenshotMode::Fullscreen, u64::default()),
             options: Options::new(),
             timer: 0.0,
+            screen_index: 0,
             area_to_crop: Area::new(),
             canvas: Canvas::new(),
             img_saved: false,
@@ -182,6 +182,9 @@ impl AppState {
 
     pub fn set_edit_state(&mut self, new_state: EditState) {
         self.edit_state = new_state;
+        if self.edit_state != Drawing {
+            self.canvas.set_shape(canvas::canvas::Shape::None)
+        }
     }
 
     pub fn get_edit_state(&self) -> EditState {
@@ -213,11 +216,11 @@ impl AppState {
     }
 
     pub fn get_screen_index(&self) -> usize {
-        self.options.screen_index
+        self.screen_index
     }
 
     pub fn set_screen_index(&mut self, screen_index: usize) {
-        self.options.screen_index = screen_index;
+        self.screen_index = screen_index;
     }
 
     pub fn get_text_buffer(&self) -> String {

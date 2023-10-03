@@ -4,12 +4,13 @@ pub mod canvas_widget;
 use button_mod::druid_mod::*;
 use canvas_widget::canvas_widget::CanvasWidget;
 use druid::{
-    widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
+    widget::{*, self}, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
     WidgetExt, WindowId, Command, Selector, Target, Event,
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
 use shortcut_lib::*;
+use screenshot_lib::number_of_screens;
 use core::panic;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -227,11 +228,17 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cirle),
                     );
+                    let button_scissors = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/scissors.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cut),
+                    );
 
                     FlexMod::row(false).with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
-                    .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).with_child(button_rubber).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
-                    .with_child(Flex::row().with_child(button_rubber).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_scissors).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_none).padding((20.0,0.0)))
                     .visible_if(|data: &AppState| data.get_edit_state() == EditState::Drawing).center().border(Color::BLACK, 2.0)
                 };
@@ -253,7 +260,7 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| {
                             data.clear_highlight();
-                            data.set_edit_state(EditState::None)
+                            data.set_edit_state(EditState::Drawing)
                         },
                     );
 
@@ -297,7 +304,7 @@ impl View {
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
                         |_, data, _| {
-                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())));
+                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())).main_axis_alignment(widget::MainAxisAlignment::Start));
                         },
                     ),
                 );
@@ -312,14 +319,16 @@ impl View {
                 let shortcut_menu = MenuOption::build_shortcut_menu_widget();
                 let path_menu = MenuOption::build_path_menu_widget();
                 let timer_menu = MenuOption::build_timer_menu();
+                let screen_menu = MenuOption::build_screen_menu();
                 let menu_options = Scroll::new(
                     Flex::column()
                         .with_child(shortcut_menu)
                         .with_child(path_menu)
-                        .with_child(timer_menu),
+                        .with_child(timer_menu)
+                        .with_child(screen_menu),
                 )
                 .vertical()
-                .fix_height(400.0);
+                .fix_height(500.0);
 
                 FlexMod::column(false)
                     .with_flex_child(menu_options, 1.0)
@@ -483,6 +492,16 @@ impl MenuOption {
                 .lens(AppState::timer),
         );
         timer_menu.build()
+    }
+
+    fn build_screen_menu() -> impl Widget<AppState> {
+        let mut screen_menu = MenuOption::new("Screen".to_string());
+        let mut screen_indexes = vec![];
+        for i in 0..number_of_screens() {
+            screen_indexes.push((i.to_string(), i));
+        }
+        screen_menu.add_option("Index".to_string(), RadioGroup::row(screen_indexes).lens(AppState::screen_index));
+        screen_menu.build()
     }
 }
 

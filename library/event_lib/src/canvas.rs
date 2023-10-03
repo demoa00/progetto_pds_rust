@@ -28,7 +28,7 @@ pub mod canvas {
     impl Canvas {
         pub fn new() -> Self {
             return Canvas {
-                shape: Shape::Free,
+                shape: Shape::None,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
                 buf_point: VecDeque::new(),
@@ -185,9 +185,6 @@ pub mod canvas {
         mut end: (f32, f32),
         thickness: usize,
     ) -> HashSet<(usize, usize)> {
-        let dx = end.0 - start.0;
-        let dy = end.1 - start.1;
-
         if start == end {
             return HashSet::new();
         }
