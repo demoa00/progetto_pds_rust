@@ -5,9 +5,10 @@ use canvas::canvas::Canvas;
 use chrono::Local;
 use druid::{
     commands,
-    im::Vector,
+    im::{HashMap, Vector},
     image::{ImageBuffer, Rgba},
     keyboard_types::Key,
+    piet::ImageFormat,
     widget::{Controller, Flex, Painter},
     AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Rect,
     RenderContext, Widget, WidgetExt, WindowDesc,
@@ -90,6 +91,7 @@ impl Options {
 
 #[derive(Clone, Data, Lens)]
 pub struct AppState {
+    #[data(ignore)]
     name: String,
     buf_view: ImageBuf,
     text_buffer: String,
@@ -98,9 +100,11 @@ pub struct AppState {
     screenshot_mode: (ScreenshotMode, u64),
     options: Options,
     timer: f64,
+    #[data(ignore)]
     area_to_crop: Area,
     #[data(ignore)]
     pub canvas: Canvas,
+    #[data(ignore)]
     img_saved: bool,
 }
 
@@ -262,6 +266,21 @@ impl AppState {
 
     pub fn highlight_area(&mut self, start_point: (i32, i32), end_point: (i32, i32)) {
         let img_size = (self.buf_view.width() as u32, self.buf_view.height() as u32);
+
+        let mut start_point_cut = (0, 0);
+        start_point_cut.0 = if start_point.0 > end_point.0 {
+            end_point.0 as usize
+        } else {
+            start_point.0 as usize
+        };
+        start_point_cut.1 = if start_point.1 > end_point.1 {
+            end_point.1 as usize
+        } else {
+            start_point.1 as usize
+        };
+
+        self.canvas.start_point_cut = start_point_cut;
+
         match calculate_area(img_size, start_point, end_point) {
             Option::Some(area) => {
                 let (offset_c, offset_r) = area.left_corner;
@@ -313,12 +332,51 @@ impl AppState {
                 .unwrap();
         let new_buf_view = ImageBuf::from_raw(
             new_buf_save.clone().to_vec(),
-            druid::piet::ImageFormat::RgbaSeparate,
+            ImageFormat::RgbaSeparate,
             width as usize,
             height as usize,
         );
 
+        let old_width = self.buf_view.width();
+
         self.set_buf(new_buf_view);
+
+        let mut new_modified_pixel = HashMap::new();
+        self.canvas.modified_pixel.iter().for_each(|e| {
+            let mut new_point = e.0.to_owned();
+
+            new_point.0 = match (new_point.0 / ImageFormat::RgbaSeparate.bytes_per_pixel())
+                .checked_sub(self.canvas.start_point_cut.0)
+            {
+                Some(sub) => sub,
+                Option::None => {
+                    return;
+                }
+            };
+            new_point.1 = match (new_point.1
+                / (old_width * ImageFormat::RgbaSeparate.bytes_per_pixel()))
+            .checked_sub(self.canvas.start_point_cut.1)
+            {
+                Some(sub) => sub,
+                Option::None => {
+                    return;
+                }
+            };
+
+            if new_point.0 < self.buf_view.width() && new_point.1 < self.buf_view.height() {
+                new_modified_pixel.insert(
+                    (
+                        new_point.0 * ImageFormat::RgbaSeparate.bytes_per_pixel(),
+                        new_point.1
+                            * self.buf_view.width()
+                            * ImageFormat::RgbaSeparate.bytes_per_pixel(),
+                    ),
+                    e.1.to_owned(),
+                );
+            }
+        });
+
+        self.canvas.modified_pixel = new_modified_pixel;
     }
 
     pub fn save_img(&mut self) {

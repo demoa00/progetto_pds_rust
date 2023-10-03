@@ -67,9 +67,11 @@ pub mod canvas_widget {
                 Event::MouseUp(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {
                         data.canvas.set_init_draw(false);
+                        data.canvas.buf_point.clear();
                     }
                     Shape::Rubber => {
                         data.canvas.set_init_draw(false);
+                        data.canvas.buf_point.clear();
                     }
                     Shape::Cut => {
                         self.end_point = (
@@ -133,53 +135,73 @@ pub mod canvas_widget {
                 },
                 Event::MouseMove(mouse_event) => {
                     let shape = data.canvas.get_shape();
+                    let image_size = self.image_data.size();
+
+                    let ratio = image_size.width / self.widget_size.width;
+
+                    let current_point = (
+                        ((mouse_event.pos.x as f64 * ratio) as usize)
+                            + data.canvas.get_thickness() / 2,
+                        ((mouse_event.pos.y as f64 * ratio) as usize)
+                            + data.canvas.get_thickness() / 2,
+                    );
 
                     if (shape == Shape::Free || shape == Shape::Rubber)
                         && data.canvas.get_init_draw() == true
                     {
-                        let image_size = self.image_data.size();
+                        if data.canvas.buf_point.len() <= 1 {
+                            data.canvas.buf_point.push_back(current_point);
+                        }
 
-                        let ratio = image_size.width / self.widget_size.width;
+                        if data.canvas.buf_point.len() >= 2 {
+                            let buf = data.get_buf_view();
+                            let w = buf.width();
+                            let h = buf.height();
 
-                        let current_point = (
-                            ((mouse_event.pos.x as f64 * ratio) as usize)
-                                + data.canvas.get_thickness() / 2,
-                            ((mouse_event.pos.y as f64 * ratio) as usize)
-                                + data.canvas.get_thickness() / 2,
-                        );
+                            let p1 = data.canvas.buf_point.pop_front().unwrap();
+                            let p2 = data.canvas.buf_point.pop_front().unwrap();
+                            data.canvas.buf_point.push_front(p2);
 
-                        let buf = data.get_buf_view();
-                        let w = buf.width();
-                        let h = buf.height();
+                            match shape {
+                                Shape::Free => {
+                                    let new_buf = data.canvas.draw_shape(
+                                        buf.raw_pixels().to_vec(),
+                                        w,
+                                        h,
+                                        p1,
+                                        p2,
+                                        0xff0000ff,
+                                        Shape::Line,
+                                        data.canvas.get_thickness(),
+                                    );
 
-                        let buf = if shape == Shape::Free {
-                            data.canvas.draw_pixel(
-                                buf.raw_pixels().to_vec(),
-                                w,
-                                h,
-                                current_point,
-                                0xff0000ff,
-                                data.canvas.get_thickness(),
-                            )
-                        } else {
-                            match data.canvas.clear_pixel(
-                                buf.raw_pixels().to_vec(),
-                                w,
-                                h,
-                                current_point,
-                                data.canvas.get_thickness() + 8,
-                            ) {
-                                Some(pixels) => ImageBuf::from_raw(
-                                    pixels,
-                                    druid::piet::ImageFormat::RgbaSeparate,
-                                    w,
-                                    h,
-                                ),
-                                _ => buf,
-                            }
-                        };
+                                    data.set_buf(new_buf);
+                                }
+                                Shape::Rubber => {
+                                    match data.canvas.clear_pixel(
+                                        buf.raw_pixels().to_vec(),
+                                        w,
+                                        h,
+                                        p1,
+                                        p2,
+                                        data.canvas.get_thickness() + 16,
+                                    ) {
+                                        Some(pixels) => {
+                                            let new_buf = ImageBuf::from_raw(
+                                                pixels,
+                                                druid::piet::ImageFormat::RgbaSeparate,
+                                                w,
+                                                h,
+                                            );
 
-                        data.set_buf(buf);
+                                            data.set_buf(new_buf);
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                _ => panic!("Unable to draw shape"),
+                            };
+                        }
                     }
                 }
                 _ => {}
@@ -202,17 +224,16 @@ pub mod canvas_widget {
             _data: &AppState,
             _env: &druid::Env,
         ) {
-            
         }
 
         fn layout(
             &mut self,
-            layout_ctx: &mut LayoutCtx,
+            _layout_ctx: &mut LayoutCtx,
             bc: &BoxConstraints,
             _data: &AppState,
             _env: &Env,
         ) -> Size {
-            println!("layout");
+            /* println!("layout");
 
             bc.debug_check("Image");
 
@@ -233,11 +254,27 @@ pub mod canvas_widget {
 
             self.widget_size = size;
 
+            return size; */
+
+            let max = bc.max();
+            let image_size = self.image_size();
+            let size = if bc.is_width_bounded() && !bc.is_height_bounded() {
+                let ratio = max.width / image_size.width;
+                Size::new(max.width, ratio * image_size.height)
+            } else if bc.is_height_bounded() && !bc.is_width_bounded() {
+                let ratio = max.height / image_size.height;
+                Size::new(ratio * image_size.width, max.height)
+            } else {
+                bc.constrain(image_size)
+            };
+
+            self.widget_size = size;
+
             return size;
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {
-            println!("paint");
+            //println!("paint");
 
             let image_size = self.image_size();
             let parent = ctx.size();

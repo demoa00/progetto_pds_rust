@@ -1,4 +1,5 @@
 pub mod canvas {
+    use circular_buffer::CircularBuffer;
     use druid::{im::HashMap, piet::ImageFormat, Data, ImageBuf};
     use std::collections::HashSet;
 
@@ -13,12 +14,13 @@ pub mod canvas {
         None,
     }
 
-    #[derive(Debug, Clone, Data)]
+    #[derive(Debug, Clone)]
     pub struct Canvas {
         shape: Shape,
         init_draw: bool,
-        #[data(eq)]
-        modified_pixel: HashMap<(usize, usize), u32>,
+        pub modified_pixel: HashMap<(usize, usize), u32>,
+        pub buf_point: CircularBuffer<2, (usize, usize)>,
+        pub start_point_cut: (usize, usize),
         thickness: usize,
         fill: bool,
     }
@@ -29,6 +31,8 @@ pub mod canvas {
                 shape: Shape::Free,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
+                buf_point: CircularBuffer::new(),
+                start_point_cut: (0, 0),
                 thickness: 5,
                 fill: false,
             };
@@ -37,6 +41,7 @@ pub mod canvas {
         pub fn set_shape(&mut self, new_shape: Shape) {
             self.shape = new_shape;
             self.init_draw = false;
+            self.buf_point.clear();
         }
 
         pub fn get_shape(&self) -> Shape {
@@ -126,51 +131,20 @@ pub mod canvas {
             return img;
         }
 
-        pub fn draw_pixel(
-            &mut self,
-            mut pixels: Vec<u8>,
-            width: usize,
-            height: usize,
-            current: (usize, usize),
-            color: u32,
-            thickness: usize,
-        ) -> ImageBuf {
-            let filled_pixels = generate_free_line_coordinates(current, thickness);
-
-            for (x, y) in filled_pixels {
-                if x < width && y < height {
-                    let true_x = x * ImageFormat::RgbaSeparate.bytes_per_pixel();
-                    let true_y = y * width * ImageFormat::RgbaSeparate.bytes_per_pixel();
-
-                    let mask = 0xff000000;
-                    let mut old_color: u32 = 0;
-                    for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
-                        old_color = (old_color << 8) | pixels[true_x + true_y + i] as u32;
-                        pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
-                            >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
-                            as u8;
-                    }
-
-                    if !self.modified_pixel.contains_key(&(true_x, true_y)) {
-                        self.modified_pixel.insert((true_x, true_y), old_color);
-                    }
-                }
-            }
-
-            let img = ImageBuf::from_raw(pixels, ImageFormat::RgbaSeparate, width, height);
-
-            return img;
-        }
-
         pub fn clear_pixel(
             &mut self,
             mut pixels: Vec<u8>,
             width: usize,
             height: usize,
-            current: (usize, usize),
+            start: (usize, usize),
+            end: (usize, usize),
             thickness: usize,
         ) -> Option<Vec<u8>> {
-            let cleared_pixels = generate_free_line_coordinates(current, thickness);
+            let cleared_pixels = generate_line_coordinates(
+                (start.0 as f32, start.1 as f32),
+                (end.0 as f32, end.1 as f32),
+                thickness,
+            );
             let mut modified = false;
 
             for (x, y) in cleared_pixels {
@@ -207,30 +181,6 @@ pub mod canvas {
         }
     }
 
-    pub fn generate_free_line_coordinates(
-        current: (usize, usize),
-        thickness: usize,
-    ) -> HashSet<(usize, usize)> {
-        let mut filled_pixels = HashSet::new();
-
-        let min_x = match current.0.checked_sub(thickness / 2) {
-            Some(sub) => sub,
-            None => 0,
-        };
-        let min_y = match current.1.checked_sub(thickness / 2) {
-            Some(sub) => sub,
-            None => 0,
-        };
-
-        for x in min_x..=(current.0 + thickness / 2) {
-            for y in min_y..=(current.1 + thickness / 2) {
-                filled_pixels.insert((x, y));
-            }
-        }
-
-        return filled_pixels;
-    }
-
     pub fn generate_line_coordinates(
         mut start: (f32, f32),
         mut end: (f32, f32),
@@ -238,6 +188,10 @@ pub mod canvas {
     ) -> HashSet<(usize, usize)> {
         let dx = end.0 - start.0;
         let dy = end.1 - start.1;
+
+        if start == end{
+            return HashSet::new();
+        }
 
         if start.0 > end.0 {
             let tmp = start.0;
@@ -302,9 +256,7 @@ pub mod canvas {
             }
         } else {
             // The thickness of straight is on the vertical
-            raw_filled_pixels.iter().for_each(|point| {
-                let (x, y) = point.to_owned();
-
+            for (x, y) in raw_filled_pixels {
                 let min_y = match y.checked_sub(thickness / 2) {
                     Some(sub) => sub,
                     None => 0,
@@ -313,7 +265,7 @@ pub mod canvas {
                 for y_th in min_y..=(y + thickness / 2) {
                     filled_pixels.insert((x, y_th));
                 }
-            });
+            }
         }
 
         // This is the case where the mouse drag occurred from top left to bottom right or vice versa
