@@ -5,7 +5,7 @@ use button_mod::druid_mod::*;
 use canvas_widget::canvas_widget::CanvasWidget;
 use druid::{
     widget::*, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
-    WidgetExt, WindowId, Command, Selector, Target,
+    WidgetExt, WindowId, Command, Selector, Target, Event,
 };
 use event_lib::*;
 use flex_mod::druid_mod::*;
@@ -490,17 +490,19 @@ impl WindowController {
 impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
     fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
         match event {
-            druid::Event::Command(ref c) => {
+            Event::Command(ref c) => {
                 if c.is(Selector::<()>::new("mario")){
                     prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
                 }
 
                 child.event(ctx, event, data, env)
             },
-            druid::Event::WindowSize(_) => {
+            Event::WindowSize(_) => {
+                ctx.request_update();
                 child.event(ctx, event, data, env)
             }
             _ => child.event(ctx, event, data, env)
         }
     }
 }
+

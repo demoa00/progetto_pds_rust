@@ -1,7 +1,6 @@
 pub mod canvas {
-    use circular_buffer::CircularBuffer;
     use druid::{im::HashMap, piet::ImageFormat, Data, ImageBuf};
-    use std::collections::HashSet;
+    use std::collections::{HashSet, VecDeque};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
     pub enum Shape {
@@ -19,7 +18,7 @@ pub mod canvas {
         shape: Shape,
         init_draw: bool,
         pub modified_pixel: HashMap<(usize, usize), u32>,
-        pub buf_point: CircularBuffer<2, (usize, usize)>,
+        pub buf_point: VecDeque<(usize, usize)>,
         pub start_point_cut: (usize, usize),
         thickness: usize,
         fill: bool,
@@ -31,9 +30,9 @@ pub mod canvas {
                 shape: Shape::Free,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
-                buf_point: CircularBuffer::new(),
+                buf_point: VecDeque::new(),
                 start_point_cut: (0, 0),
-                thickness: 5,
+                thickness: 3,
                 fill: false,
             };
         }
@@ -138,12 +137,11 @@ pub mod canvas {
             height: usize,
             start: (usize, usize),
             end: (usize, usize),
-            thickness: usize,
         ) -> Option<Vec<u8>> {
             let cleared_pixels = generate_line_coordinates(
                 (start.0 as f32, start.1 as f32),
                 (end.0 as f32, end.1 as f32),
-                thickness,
+                21,
             );
             let mut modified = false;
 
@@ -186,12 +184,12 @@ pub mod canvas {
         mut end: (f32, f32),
         thickness: usize,
     ) -> HashSet<(usize, usize)> {
-        let dx = end.0 - start.0;
-        let dy = end.1 - start.1;
-
-        if start == end{
+        if start == end {
             return HashSet::new();
         }
+
+        let dx = end.0 - start.0;
+        let dy = end.1 - start.1;
 
         if start.0 > end.0 {
             let tmp = start.0;
@@ -203,8 +201,6 @@ pub mod canvas {
             start.1 = end.1;
             end.1 = tmp;
         }
-
-        let slope = (end.1 - start.1) / (end.0 - start.0);
 
         let m = (start.1 - end.1) / (start.0 - end.0);
         let q = start.1 - m * start.0;
@@ -219,7 +215,7 @@ pub mod canvas {
 
         let mut filled_pixels = HashSet::new();
 
-        if slope == f32::INFINITY {
+        if m == f32::NEG_INFINITY {
             // The line is vertical
             // The thickness of straight is on the horizontal
             let x = (start.0 + (end.0 - start.0) / 2.0) as usize;
@@ -236,7 +232,7 @@ pub mod canvas {
                     filled_pixels.insert((x_th, y));
                 }
             }
-        } else if slope > 1.0 {
+        } else if m > 1.0 {
             // The thickness of straight is on the horizontal
             for i in 0..(raw_filled_pixels.len() - 1) {
                 let x = raw_filled_pixels[i].0;

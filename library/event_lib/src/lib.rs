@@ -508,7 +508,7 @@ impl AppDelegate<AppState> for EventHandler {
         _env: &Env,
     ) -> Option<druid::Event> {
         match event {
-            druid::Event::Timer(ref timer_event) => {
+            Event::Timer(ref timer_event) => {
                 if data.get_screenshot_token() == timer_event.into_raw() {
                     match data.get_screenshot_mode() {
                         ScreenshotMode::Fullscreen => data.set_buf(
@@ -549,7 +549,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                 return Some(event);
             }
-            druid::Event::MouseDown(ref mouse_event) => {
+            Event::MouseDown(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
                     let start_point: (i32, i32) = (
                         mouse_event.pos.x.ceil() as i32,
@@ -561,7 +561,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                 return Some(event);
             }
-            druid::Event::MouseUp(ref mouse_event) => {
+            Event::MouseUp(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
                     let end_point: (i32, i32) = (
                         mouse_event.pos.x.ceil() as i32,
@@ -575,7 +575,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                 return Some(event);
             }
-            druid::Event::KeyDown(ref key_event) => {
+            Event::KeyDown(ref key_event) => {
                 if let EditState::ShortcutEditing(_) = data.get_edit_state() {
                     if self.keys_pressed.contains(&key_event.key) == false
                         && self.keys_pressed.len() < 3
@@ -597,7 +597,7 @@ impl AppDelegate<AppState> for EventHandler {
                 }
                 return Some(event);
             }
-            druid::Event::KeyUp(_) => {
+            Event::KeyUp(_) => {
                 if let EditState::ShortcutEditing(ref action) = data.get_edit_state() {
                     match data.update_shortcuts(action.clone(), self.keys_pressed.clone()) {
                         Ok(_) => {}
@@ -617,7 +617,7 @@ impl AppDelegate<AppState> for EventHandler {
                 }
                 return Some(event);
             }
-            _ => return Some(event),
+            _ => Some(event),
         }
     }
 }
