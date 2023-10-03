@@ -184,7 +184,6 @@ pub mod canvas_widget {
                                         h,
                                         p1,
                                         p2,
-                                        data.canvas.get_thickness() + 16,
                                     ) {
                                         Some(pixels) => {
                                             let new_buf = ImageBuf::from_raw(
@@ -219,29 +218,29 @@ pub mod canvas_widget {
 
         fn update(
             &mut self,
-            _ctx: &mut druid::UpdateCtx,
+            ctx: &mut druid::UpdateCtx,
             _old_data: &AppState,
             _data: &AppState,
             _env: &druid::Env,
         ) {
+            ctx.request_layout();
+            ctx.request_paint();
         }
 
         fn layout(
             &mut self,
-            _layout_ctx: &mut LayoutCtx,
+            layout_ctx: &mut LayoutCtx,
             bc: &BoxConstraints,
             _data: &AppState,
             _env: &Env,
         ) -> Size {
-            /* println!("layout");
-
             bc.debug_check("Image");
 
             let win_size = layout_ctx.window().get_size();
             let image_size = self.image_size();
 
             let w = win_size.width - 74.0;
-            let h = win_size.height - 148.0;
+            let h = win_size.height - 222.0;
 
             let w_ratio = w / image_size.width;
             let h_ratio = h / image_size.height;
@@ -254,9 +253,9 @@ pub mod canvas_widget {
 
             self.widget_size = size;
 
-            return size; */
+            return size;
 
-            let max = bc.max();
+            /* let max = bc.max();
             let image_size = self.image_size();
             let size = if bc.is_width_bounded() && !bc.is_height_bounded() {
                 let ratio = max.width / image_size.width;
@@ -270,7 +269,7 @@ pub mod canvas_widget {
 
             self.widget_size = size;
 
-            return size;
+            return size; */
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {
