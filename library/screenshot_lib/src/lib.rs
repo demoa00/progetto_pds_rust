@@ -130,10 +130,26 @@ pub fn calculate_area(
 
 /// This function recieve a delay expressed in u64 and,
 /// the current screen then it calls `take_screenshot`.
-pub fn take_screenshot_with_delay(time: u64, current_screen: usize) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
+pub fn take_screenshot_with_delay(
+    time: u64,
+    current_screen: usize,
+) -> Option<(ImageBuffer<Rgba<u8>, Vec<u8>>, ImageBuf)> {
     let sleep_time = Duration::new(time, 0.0 as u32);
-    
+
     thread::sleep(sleep_time);
 
     return take_screenshot(current_screen);
+}
+
+/// Obtains a Vec<Screen> that contains the infos about all the available screens (the ones connected)
+/// then it gets the len of the Vec<...>
+pub fn get_available_screens() -> usize {
+    let current_available_screens = Screen::all().unwrap();
+    let mut screens_id = Vec::<u32>::with_capacity(current_available_screens.len());
+    // This iteration is made in case of is necessary to know the index of the screens, than is possible to 
+    // change the return type of this function to: ->Vec<u32>
+    for screen in current_available_screens {
+        screens_id.push(screen.display_info.id);
+    }
+    return screens_id.len();
 }
