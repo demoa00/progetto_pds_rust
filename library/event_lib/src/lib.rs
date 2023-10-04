@@ -105,6 +105,8 @@ pub struct AppState {
     #[data(ignore)]
     pub canvas: Canvas,
     #[data(ignore)]
+    thickness: f64,
+    #[data(ignore)]
     img_saved: bool,
 }
 
@@ -122,6 +124,7 @@ impl AppState {
             screen_index: 0,
             area_to_crop: Area::new(),
             canvas: Canvas::new(),
+            thickness: 1.0,
             img_saved: false,
         }
     }
@@ -133,9 +136,13 @@ impl AppState {
     pub fn set_buf(&mut self, buf: ImageBuf) {
         self.img_saved = false;
 
+        let is_empty = self.buf_view.raw_pixels().is_empty();
+
         self.buf_view = buf;
 
-        self.copy_to_clipboard();
+        if is_empty {
+            self.copy_to_clipboard();
+        }
     }
 
     pub fn get_buf_view(&self) -> ImageBuf {
@@ -207,20 +214,28 @@ impl AppState {
         return self.screenshot_mode.1.clone();
     }
 
-    pub fn get_timer(&self) -> f64 {
-        self.timer
-    }
-
     pub fn set_timer(&mut self, timer: f64) {
         self.timer = timer;
     }
 
-    pub fn get_screen_index(&self) -> usize {
-        self.screen_index
+    pub fn get_timer(&self) -> f64 {
+        self.timer
+    }
+
+    pub fn set_thickness(&mut self, thickness: f64) {
+        self.thickness = thickness;
+    }
+
+    pub fn get_thickness(&self) -> f64 {
+        self.thickness
     }
 
     pub fn set_screen_index(&mut self, screen_index: usize) {
         self.screen_index = screen_index;
+    }
+
+    pub fn get_screen_index(&self) -> usize {
+        self.screen_index
     }
 
     pub fn get_text_buffer(&self) -> String {
@@ -514,11 +529,17 @@ impl AppDelegate<AppState> for EventHandler {
         match event {
             Event::Timer(ref timer_event) => {
                 if data.get_screenshot_token() == timer_event.into_raw() {
+                    if data.get_screen_index() > (number_of_screens() - 1) {
+                        data.set_screen_index(0);
+                    }
+
                     match data.get_screenshot_mode() {
-                        ScreenshotMode::Fullscreen => data.set_buf(
-                            take_screenshot_with_delay(data.timer, data.get_screen_index())
-                                .unwrap(),
-                        ),
+                        ScreenshotMode::Fullscreen => {
+                            data.set_buf(
+                                take_screenshot_with_delay(data.timer, data.get_screen_index())
+                                    .unwrap(),
+                            );
+                        }
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
                                 data.set_buf(

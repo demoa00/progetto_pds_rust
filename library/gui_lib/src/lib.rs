@@ -28,7 +28,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             .entry(
                 MenuItem::new("New screenshot")
                     .on_activate(move |ctx, _data: &mut AppState, _| {
-                        ctx.submit_command(Command::new(Selector::new("mario"), (), Target::Auto));
+                        ctx.submit_command(Command::new(Selector::new("new_screenshot"), (), Target::Auto));
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts()
@@ -130,7 +130,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {
+                        |ctx, data: &mut AppState, _| {
                             if !data.get_buf_view().raw_pixels().is_empty() {
                                 match MessageDialog::new().set_title("Do you want to exit the editing window?")
                                                             .set_text("If you confirm all changes made and the image will be deleted")
@@ -139,6 +139,7 @@ impl View {
                                         if confirm {
                                             data.reset_img();
                                             data.set_edit_state(EditState::None);
+                                            ctx.submit_command(Command::new(Selector::new("update_widget"), (), Target::Auto));
                                             data.set_view_state(ViewState::MenuView);
                                         }
                                     },
@@ -171,19 +172,19 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_red.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {}
+                        |_, data: &mut AppState, _| { data.canvas.set_color(0xff0000ff);}
                     );
                     let button_green_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_green.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {}
+                        |_, data: &mut AppState, _| {data.canvas.set_color(0x00ff00ff);}
                     );
                     let button_blue_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_blu.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {}
+                        |_, data: &mut AppState, _| {data.canvas.set_color(0x0000ffff);}
                     );
 
                     let button_none = TransparentButton::with_bg(
@@ -235,7 +236,9 @@ impl View {
                         |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cut),
                     );
 
-                    FlexMod::row(false).with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
+                    FlexMod::row(false)
+                    .with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(Label::new("Thickness").with_text_color(Color::BLACK)).with_child(View::build_thickness_slider()).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).with_child(button_rubber).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_scissors).padding((20.0,0.0)))
@@ -294,6 +297,21 @@ impl View {
             }
         }
         .background(TOP_BAR_COLOR)
+    }
+
+    fn build_thickness_slider() -> impl Widget<AppState> {
+        let thickness_slider = 
+            Slider::new()
+                .with_range(1.0, 15.0)
+                .track_color(KeyOrValue::Concrete(Color::WHITE))
+                .knob_style(KnobStyle::Wedge)
+                .axis(druid::widget::Axis::Horizontal)
+                .with_step(2.0)
+                .annotated(2.0, 1.0)
+                .fix_width(100.0)
+                .lens(AppState::thickness);
+        
+        return thickness_slider;
     }
 
     fn build_bottom_page_widget(view_state: &ViewState) -> impl Widget<AppState> {
@@ -498,7 +516,7 @@ impl MenuOption {
         let mut screen_menu = MenuOption::new("Screen".to_string());
         let mut screen_indexes = vec![];
         for i in 0..number_of_screens() {
-            screen_indexes.push((i.to_string(), i));
+            screen_indexes.push(((i+1).to_string(), i));
         }
         screen_menu.add_option("Index".to_string(), RadioGroup::row(screen_indexes).lens(AppState::screen_index));
         screen_menu.build()
@@ -531,17 +549,19 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
     fn event(&mut self, child: &mut W, ctx: &mut druid::EventCtx, event: &druid::Event, data: &mut AppState, env: &Env) {
         match event {
             Event::Command(ref c) => {
-                if c.is(Selector::<()>::new("mario")){
+                if c.is(Selector::<()>::new("new_screenshot")){
                     prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
+                }else if c.is(Selector::<()>::new("update_widget")){
+                    ctx.request_update();
                 }
 
-                child.event(ctx, event, data, env)
+                child.event(ctx, event, data, env);
             },
             Event::WindowSize(_) => {
                 ctx.request_update();
-                child.event(ctx, event, data, env)
+                child.event(ctx, event, data, env);
             }
-            _ => child.event(ctx, event, data, env)
+            _ => {child.event(ctx, event, data, env);},
         }
     }
 }

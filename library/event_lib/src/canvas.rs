@@ -16,12 +16,11 @@ pub mod canvas {
     #[derive(Debug, Clone)]
     pub struct Canvas {
         shape: Shape,
-        // color
+        color: u32,
         init_draw: bool,
         pub modified_pixel: HashMap<(usize, usize), u32>,
         pub buf_point: VecDeque<(usize, usize)>,
         pub start_point_cut: (usize, usize),
-        thickness: usize,
         fill: bool,
     }
 
@@ -29,11 +28,11 @@ pub mod canvas {
         pub fn new() -> Self {
             return Canvas {
                 shape: Shape::None,
+                color: 0xff0000ff,
                 init_draw: false,
                 modified_pixel: HashMap::new(),
                 buf_point: VecDeque::new(),
                 start_point_cut: (0, 0),
-                thickness: 3,
                 fill: false,
             };
         }
@@ -48,20 +47,20 @@ pub mod canvas {
             return self.shape;
         }
 
+        pub fn set_color(&mut self, new_color: u32) {
+            self.color = new_color;
+        }
+
+        pub fn get_color(&self) -> u32 {
+            return self.color;
+        }
+
         pub fn set_init_draw(&mut self, new_value: bool) {
             self.init_draw = new_value;
         }
 
         pub fn get_init_draw(&self) -> bool {
             return self.init_draw;
-        }
-
-        pub fn set_thickness(&mut self, new_thickness: usize) {
-            self.thickness = new_thickness;
-        }
-
-        pub fn get_thickness(&self) -> usize {
-            return self.thickness;
         }
 
         pub fn set_fill(&mut self, val: bool) {
@@ -79,7 +78,6 @@ pub mod canvas {
             height: usize,
             start: (usize, usize),
             end: (usize, usize),
-            color: u32,
             shape: Shape,
             thickness: usize,
         ) -> ImageBuf {
@@ -115,7 +113,7 @@ pub mod canvas {
                     let mut old_color: u32 = 0;
                     for i in 0..ImageFormat::RgbaSeparate.bytes_per_pixel() {
                         old_color = (old_color << 8) | pixels[true_x + true_y + i] as u32;
-                        pixels[true_x + true_y + i] = ((color & (mask >> i * 8))
+                        pixels[true_x + true_y + i] = ((self.color & (mask >> i * 8))
                             >> 8 * (ImageFormat::RgbaSeparate.bytes_per_pixel() - i - 1))
                             as u8;
                     }
@@ -138,11 +136,12 @@ pub mod canvas {
             height: usize,
             start: (usize, usize),
             end: (usize, usize),
+            thickness: usize,
         ) -> Option<Vec<u8>> {
             let cleared_pixels = generate_line_coordinates(
                 (start.0 as f32, start.1 as f32),
                 (end.0 as f32, end.1 as f32),
-                21,
+                thickness + 8,
             );
             let mut modified = false;
 

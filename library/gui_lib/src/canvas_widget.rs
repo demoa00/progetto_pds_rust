@@ -130,9 +130,8 @@ pub mod canvas_widget {
                             h,
                             self.start_point,
                             self.end_point,
-                            0xff0000ff,
                             data.canvas.get_shape(),
-                            data.canvas.get_thickness(),
+                            data.get_thickness() as usize,
                         );
 
                         data.set_buf(buf);
@@ -146,9 +145,9 @@ pub mod canvas_widget {
 
                     let current_point = (
                         ((mouse_event.pos.x as f64 * ratio) as usize)
-                            + data.canvas.get_thickness() / 2,
+                            + (data.get_thickness() / 2.0) as usize,
                         ((mouse_event.pos.y as f64 * ratio) as usize)
-                            + data.canvas.get_thickness() / 2,
+                            + (data.get_thickness() / 2.0) as usize,
                     );
 
                     if (shape == Shape::Free || shape == Shape::Rubber)
@@ -175,9 +174,8 @@ pub mod canvas_widget {
                                         h,
                                         p1,
                                         p2,
-                                        0xff0000ff,
                                         Shape::Line,
-                                        data.canvas.get_thickness(),
+                                        data.get_thickness() as usize,
                                     );
 
                                     data.set_buf(new_buf);
@@ -189,6 +187,7 @@ pub mod canvas_widget {
                                         h,
                                         p1,
                                         p2,
+                                        data.get_thickness() as usize,
                                     ) {
                                         Some(pixels) => {
                                             let new_buf = ImageBuf::from_raw(
