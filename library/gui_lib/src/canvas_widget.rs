@@ -52,7 +52,7 @@ pub mod canvas_widget {
             if edit_state != EditState::Drawing && edit_state != EditState::ImageResize {
                 //return;
             }*/
-
+            
             match event {
                 Event::MouseDown(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {
@@ -222,13 +222,11 @@ pub mod canvas_widget {
 
         fn update(
             &mut self,
-            ctx: &mut druid::UpdateCtx,
+            _ctx: &mut druid::UpdateCtx,
             _old_data: &AppState,
             _data: &AppState,
             _env: &druid::Env,
         ) {
-            ctx.request_layout();
-            ctx.request_paint();
         }
 
         fn layout(
@@ -277,8 +275,6 @@ pub mod canvas_widget {
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {
-            //println!("paint");
-
             let image_size = self.image_size();
             let parent = ctx.size();
             let fit_box = image_size;

@@ -191,49 +191,49 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.set_edit_state(EditState::None),
+                        |_, data: &mut AppState, _| {data.set_edit_state(EditState::None)},
                     );
                     let button_rubber = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rubber),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Rubber)},
                     );
                     let button_fill = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/fill.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_fill(!data.canvas.get_fill())
+                        |_, data: &mut AppState, _| {data.canvas.set_fill(!data.canvas.get_fill())}
                     );
                     let button_free = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Free),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Free)},
                     );
                     let button_line = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/line.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Line),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Line)},
                     );
                     let button_rectangle = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/rectangle.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Rectangle),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Rectangle)},
                     );
                     let button_circle = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/circle.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cirle),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Cirle)},
                     );
                     let button_scissors = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/scissors.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| data.canvas.set_shape(canvas::canvas::Shape::Cut),
+                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Cut)},
                     );
 
                     FlexMod::row(false)
@@ -308,7 +308,7 @@ impl View {
                 .axis(druid::widget::Axis::Horizontal)
                 .with_step(2.0)
                 .annotated(2.0, 1.0)
-                .fix_width(100.0)
+                .fix_width(120.0)
                 .lens(AppState::thickness);
         
         return thickness_slider;
@@ -322,7 +322,7 @@ impl View {
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
                         |_, data, _| {
-                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view())).main_axis_alignment(widget::MainAxisAlignment::Start));
+                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view()).controller(WindowController::new())).main_axis_alignment(widget::MainAxisAlignment::Start));
                         },
                     ),
                 );
@@ -551,17 +551,16 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
             Event::Command(ref c) => {
                 if c.is(Selector::<()>::new("new_screenshot")){
                     prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
-                }else if c.is(Selector::<()>::new("update_widget")){
-                    ctx.request_update();
                 }
 
                 child.event(ctx, event, data, env);
             },
             Event::WindowSize(_) => {
-                ctx.request_update();
                 child.event(ctx, event, data, env);
+                ctx.request_layout();
+                ctx.request_paint();
             }
-            _ => {child.event(ctx, event, data, env);},
+            _ => { child.event(ctx, event, data, env);},
         }
     }
 }

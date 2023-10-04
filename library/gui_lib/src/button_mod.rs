@@ -117,7 +117,7 @@ pub mod druid_mod {
             let is_hot = ctx.is_hot();
             let size = ctx.size();
             let stroke_width = env.get(theme::BUTTON_BORDER_WIDTH);
-
+            
             let rounded_rect = size
                 .to_rect()
                 .inset(-stroke_width / 2.0)
@@ -155,7 +155,7 @@ pub mod druid_mod {
             };
 
             let border_color = if is_hot && !ctx.is_disabled() {
-                Color::rgba(0.0, 0.0, 0.0, 0.0)
+                Color::rgba(0.0, 0.0, 0.0, 0.5)
             } else {
                 Color::rgba(0.0, 0.0, 0.0, 0.0)
             };

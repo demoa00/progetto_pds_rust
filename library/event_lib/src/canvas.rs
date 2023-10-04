@@ -141,7 +141,7 @@ pub mod canvas {
             let cleared_pixels = generate_line_coordinates(
                 (start.0 as f32, start.1 as f32),
                 (end.0 as f32, end.1 as f32),
-                thickness + 8,
+                thickness + 12,
             );
             let mut modified = false;
 
