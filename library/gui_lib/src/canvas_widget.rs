@@ -2,8 +2,8 @@ pub mod canvas_widget {
     use druid::{
         kurbo::Rect,
         piet::{Image, InterpolationMode, PietImage},
-        Affine, BoxConstraints, Env, Event, ImageBuf, LayoutCtx, PaintCtx, RenderContext, Size,
-        Widget,
+        Affine, BoxConstraints, Env, Event, ImageBuf, LayoutCtx, PaintCtx, RenderContext, Selector,
+        Size, Widget,
     };
     use event_lib::{canvas::canvas::*, AppState, EditState};
 
@@ -43,7 +43,7 @@ pub mod canvas_widget {
     impl Widget<AppState> for CanvasWidget {
         fn event(
             &mut self,
-            _ctx: &mut druid::EventCtx,
+            ctx: &mut druid::EventCtx,
             event: &druid::Event,
             data: &mut AppState,
             _env: &druid::Env,
@@ -52,7 +52,7 @@ pub mod canvas_widget {
             if edit_state != EditState::Drawing && edit_state != EditState::ImageResize {
                 //return;
             }*/
-            
+
             match event {
                 Event::MouseDown(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {
@@ -207,6 +207,12 @@ pub mod canvas_widget {
                         }
                     }
                 }
+                Event::Command(ref c) => {
+                    if c.is(Selector::<()>::new("resize")) {
+                        ctx.request_layout();
+                        ctx.request_paint();
+                    }
+                }
                 _ => {}
             }
         }
@@ -241,7 +247,7 @@ pub mod canvas_widget {
             let win_size = layout_ctx.window().get_size();
             let image_size = self.image_size();
 
-            let w = win_size.width - 74.0;
+            let w = win_size.width;
             let h = win_size.height - 222.0;
 
             let w_ratio = w / image_size.width;
@@ -267,6 +273,26 @@ pub mod canvas_widget {
                 Size::new(ratio * image_size.width, max.height)
             } else {
                 bc.constrain(image_size)
+            };
+
+            self.widget_size = size;
+
+            return size; */
+
+            /* let mut max = bc.max();
+            max.width = max.width - 170.0;
+
+            let screen_size = screenshot_lib::screen_size();
+            let image_size = self.image_size();
+
+            let ratio = max.width / image_size.width;
+
+            let size = if image_size.height * ratio > screen_size.height - 470.0{
+                let new_ratio = (screen_size.height - 470.0) / image_size.height;
+
+                Size::new(image_size.width * new_ratio, screen_size.height - 470.0)
+            } else {
+                Size::new(max.width, ratio * image_size.height)
             };
 
             self.widget_size = size;

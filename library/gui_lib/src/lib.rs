@@ -555,11 +555,6 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
 
                 child.event(ctx, event, data, env);
             },
-            Event::WindowSize(_) => {
-                child.event(ctx, event, data, env);
-                ctx.request_layout();
-                ctx.request_paint();
-            }
             _ => { child.event(ctx, event, data, env);},
         }
     }

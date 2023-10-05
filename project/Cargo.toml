@@ -9,6 +9,7 @@ description = "App for take and modify screenshot"
 [dependencies]
 event_lib = { path = "../library/event_lib" }
 gui_lib = { path = "../library/gui_lib" }
+screenshot_lib = { path = "../library/screenshot_lib" }
 
 [dependencies.druid]
 version = "0.8.3"

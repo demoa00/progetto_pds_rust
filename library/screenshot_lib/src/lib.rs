@@ -1,4 +1,4 @@
-use druid::{Data, ImageBuf};
+use druid::{Data, ImageBuf, Size};
 use screenshots::Screen;
 use std::{thread, time::Duration};
 
@@ -157,4 +157,10 @@ pub fn take_screenshot_with_delay(time: f64, current_screen: usize) -> Option<Im
 
 pub fn number_of_screens() -> usize {
     Screen::all().unwrap().len()
+}
+
+pub fn screen_size() -> Size {
+    let screen = Screen::all().unwrap()[0].display_info;
+    
+    return Size::new(screen.width as f64, screen.height  as f64);
 }

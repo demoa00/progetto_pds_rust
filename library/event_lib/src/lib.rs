@@ -11,7 +11,7 @@ use druid::{
     piet::ImageFormat,
     widget::{Controller, Flex, Painter},
     AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Rect,
-    RenderContext, Widget, WidgetExt, WindowDesc,
+    RenderContext, Selector, Target, Widget, WidgetExt, WindowDesc,
 };
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
@@ -640,6 +640,10 @@ impl AppDelegate<AppState> for EventHandler {
                     data.text_buffer.clear();
                     data.set_edit_state(EditState::None);
                 }
+                return Some(event);
+            }
+            Event::WindowSize(_) => {
+                ctx.submit_command(Command::new(Selector::new("resize"), (), Target::Auto));
                 return Some(event);
             }
             _ => Some(event),
