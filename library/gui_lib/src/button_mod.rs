@@ -154,7 +154,7 @@ pub mod druid_mod {
                 )
             };
 
-            let border_color = if is_hot && !ctx.is_disabled() {
+            let border_color = if is_hot {
                 Color::rgba(0.0, 0.0, 0.0, 0.5)
             } else {
                 Color::rgba(0.0, 0.0, 0.0, 0.0)

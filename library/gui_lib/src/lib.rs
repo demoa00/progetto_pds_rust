@@ -119,13 +119,25 @@ impl View {
                             ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |_, data: &mut AppState, _| data.copy_to_clipboard(),
-                    );
+                    ).disabled_if(|data, _|{
+                        if data.get_buf_view().raw_pixels().is_empty(){
+                            true
+                        }else{
+                            false
+                        }
+                    });
                     let button_drawing = FlexMod::row(true).with_flex_child(TransparentButton::with_bg(
                         Image::new(
                         ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
                         ), 
                         |_, data: &mut AppState, _| data.set_edit_state(EditState::Drawing),
-                    ), 1.0).visible_if(|data: &AppState| data.get_edit_state() != EditState::Drawing);
+                    ), 1.0).visible_if(|data: &AppState| data.get_edit_state() != EditState::Drawing).disabled_if(|data, _|{
+                        if data.get_buf_view().raw_pixels().is_empty(){
+                            true
+                        }else{
+                            false
+                        }
+                    });
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
@@ -519,7 +531,7 @@ impl MenuOption {
             screen_indexes.push(((i+1).to_string(), i));
         }
         screen_menu.add_option("Index".to_string(), RadioGroup::row(screen_indexes).lens(AppState::screen_index));
-        screen_menu.build()
+        screen_menu.build().controller(WindowController::new())
     }
 }
 
