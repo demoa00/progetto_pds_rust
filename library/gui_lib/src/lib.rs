@@ -17,8 +17,8 @@ use strum::IntoEnumIterator;
 use native_dialog::MessageDialog;
 
 const UI_IMG_PATH: &str = "./ui_img";
-const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
-const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
+const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::BLACK);
+const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::Rgba32(0x202020FF));
 
 pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
     let mut base = Menu::empty();
@@ -105,7 +105,7 @@ impl View {
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
                         },
                     );
-                    let button_new_screenshot_cropped = TransparentButton::with_bg(
+                    let button_new_screenshot_cropped = FlexMod::row(screenshot_lib::number_of_screens() == 1).with_flex_child(TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap(),
                         ),
@@ -113,7 +113,9 @@ impl View {
                             data.set_edit_state(EditState::None);
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                         },
-                    );
+                    ), 1.0).visible_if(|_|{
+                        return screenshot_lib::number_of_screens() == 1;
+                    });
 
                     let button_drawing = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
                         Image::new(
@@ -285,7 +287,7 @@ impl View {
                     .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_scissors).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_none).padding((20.0,0.0)))
-                    .visible_if(|data: &AppState| data.get_edit_state() == EditState::Drawing).center().border(Color::BLACK, 2.0)
+                    .visible_if(|data: &AppState| data.get_edit_state() == EditState::Drawing).center()
                 };
 
                 let resize_top_bar = {
@@ -345,7 +347,7 @@ impl View {
         let thickness_slider = 
             Slider::new()
                 .with_range(1.0, 15.0)
-                .track_color(KeyOrValue::Concrete(Color::WHITE))
+                .track_color(KeyOrValue::Concrete(Color::TEAL))
                 .knob_style(KnobStyle::Wedge)
                 .axis(druid::widget::Axis::Horizontal)
                 .with_step(2.0)
@@ -364,7 +366,7 @@ impl View {
                     ViewSwitcher::new(
                         |data: &AppState, _| data.get_buf_view(),
                         |_, data, _| {
-                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view()).controller(WindowController::new())).main_axis_alignment(widget::MainAxisAlignment::Start));
+                            return Box::new(Flex::column().with_child(CanvasWidget::new(data.get_buf_view()).border(Color::TEAL, 1.5).controller(WindowController::new())).main_axis_alignment(widget::MainAxisAlignment::Start));
                         },
                     ),
                 );
@@ -420,7 +422,7 @@ impl MenuOption {
     ) {
         let option = Split::columns(
             Label::new(title)
-                .with_text_color(Color::GRAY)
+                .with_text_color(Color::WHITE)
                 .padding((0.0, 15.0)),
             interactive_part.align_right(),
         )
@@ -434,7 +436,7 @@ impl MenuOption {
         let mut result = Flex::column().with_child(
             Label::new(self.title)
                 .with_text_size(30.0)
-                .with_text_color(Color::BLACK)
+                .with_text_color(Color::WHITE)
                 .align_left()
                 .padding((40.0, 15.0)),
         );
@@ -458,7 +460,7 @@ impl MenuOption {
                         Label::new(|data: &AppState, _: &_| {
                             data.get_save_path_for_view().to_str().unwrap().to_string()
                         })
-                        .with_text_color(Color::GRAY),
+                        .with_text_color(Color::WHITE),
                     ),
                 )
                 .with_child(TransparentButton::with_bg(
@@ -509,7 +511,7 @@ impl MenuOption {
                                         |selector, _, _| {
                                             Box::new(
                                                 Label::new(selector.to_string())
-                                                    .with_text_color(Color::GRAY),
+                                                    .with_text_color(Color::WHITE),
                                             )
                                         },
                                     ))

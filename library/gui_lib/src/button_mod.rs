@@ -155,7 +155,7 @@ pub mod druid_mod {
             };
 
             let border_color = if is_hot {
-                Color::rgba(0.0, 0.0, 0.0, 0.5)
+                Color::rgba(0.0, 153.0, 153.0, 0.5)
             } else {
                 Color::rgba(0.0, 0.0, 0.0, 0.0)
             };
