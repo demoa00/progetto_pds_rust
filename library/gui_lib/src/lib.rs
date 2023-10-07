@@ -16,7 +16,7 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use native_dialog::MessageDialog;
 
-const UI_IMG_PATH: &str = "../library/gui_lib/ui_img";
+const UI_IMG_PATH: &str = "./ui_img";
 const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::TEAL);
 const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::WHITE);
 
