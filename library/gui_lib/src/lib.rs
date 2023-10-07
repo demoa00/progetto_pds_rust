@@ -49,10 +49,16 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
                     }),
             )
-            .enabled_if(|data: &AppState, _| match data.get_edit_state() {
-                EditState::ShortcutEditing(_) => false,
-                EditState::PathEditing => false,
-                _ => true,
+            .enabled_if(|data: &AppState, _| {
+                if (data.get_edit_state() == EditState::None) || (data.get_edit_state() == EditState::Drawing) {
+                    if data.get_view_state() == ViewState::MainView {
+                        true
+                    }else{
+                        false
+                    }
+                }else{
+                    false
+                }
             }),
     );
 
@@ -108,42 +114,58 @@ impl View {
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
                         },
                     );
-                    let button_save = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.save_img(),
-                    );
-                    let button_copy = TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        |_, data: &mut AppState, _| data.copy_to_clipboard(),
-                    ).disabled_if(|data, _|{
-                        if data.get_buf_view().raw_pixels().is_empty(){
-                            true
-                        }else{
-                            false
-                        }
-                    });
-                    let button_drawing = FlexMod::row(true).with_flex_child(TransparentButton::with_bg(
+
+                    let button_drawing = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
                         Image::new(
                         ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
                         ), 
                         |_, data: &mut AppState, _| data.set_edit_state(EditState::Drawing),
-                    ), 1.0).visible_if(|data: &AppState| data.get_edit_state() != EditState::Drawing).disabled_if(|data, _|{
-                        if data.get_buf_view().raw_pixels().is_empty(){
+                    ), 1.0)
+                    .visible_if(|data: &AppState| {
+                        if !data.get_is_img_empty(){
+                            match data.get_edit_state() {
+                                EditState::Drawing => false,
+                                _ => true,
+                            }
+                        }else{
+                            false
+                        }
+                    });
+
+                    let button_copy = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.copy_to_clipboard(),
+                    ), 1.0)
+                    .visible_if(|data: &AppState| {
+                        if !data.get_is_img_empty(){
                             true
                         }else{
                             false
                         }
                     });
+
+                    let button_save = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        |_, data: &mut AppState, _| data.save_img(),
+                    ), 1.0)
+                    .visible_if(|data: &AppState| {
+                        if !data.get_is_img_empty(){
+                            true
+                        }else{
+                            false
+                        }
+                    });
+                    
                     let button_options = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
                         |ctx, data: &mut AppState, _| {
-                            if !data.get_buf_view().raw_pixels().is_empty() {
+                            if !data.get_is_img_empty() {
                                 match MessageDialog::new().set_title("Do you want to exit the editing window?")
                                                             .set_text("If you confirm all changes made and the image will be deleted")
                                                             .show_confirm() {
@@ -176,7 +198,14 @@ impl View {
                         .with_flex_child(button_save, 1.0)
                         .with_flex_child(button_options, 1.0);
 
-                    Split::columns(left_part, right_part).bar_size(0.0).split_point(0.8)
+                    FlexMod::row(true).with_flex_child(Split::columns(left_part, right_part).bar_size(0.0).split_point(0.8), 1.0)
+                                .visible_if(|data|{
+                                    match data.get_edit_state() {
+                                        EditState::ImageResize => false,
+                                        EditState::MouseDetecting => false,
+                                        _ => true,
+                                    }
+                                })
                 };
 
                 let drawing_top_bar = {
@@ -205,6 +234,7 @@ impl View {
                         ),
                         |_, data: &mut AppState, _| {data.set_edit_state(EditState::None)},
                     );
+
                     let button_rubber = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
@@ -250,7 +280,7 @@ impl View {
 
                     FlexMod::row(false)
                     .with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
-                    .with_child(Flex::row().with_child(Label::new("Thickness").with_text_color(Color::BLACK)).with_child(View::build_thickness_slider()).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(View::build_thickness_slider()).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).with_child(button_rubber).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_scissors).padding((20.0,0.0)))
@@ -426,7 +456,7 @@ impl MenuOption {
                 .with_child(
                     Flex::column().with_child(
                         Label::new(|data: &AppState, _: &_| {
-                            data.get_save_path().to_str().unwrap().to_string()
+                            data.get_save_path_for_view().to_str().unwrap().to_string()
                         })
                         .with_text_color(Color::GRAY),
                     ),
@@ -571,4 +601,3 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
         }
     }
 }
-

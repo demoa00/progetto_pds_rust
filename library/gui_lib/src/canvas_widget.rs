@@ -262,42 +262,6 @@ pub mod canvas_widget {
             self.widget_size = size;
 
             return size;
-
-            /* let max = bc.max();
-            let image_size = self.image_size();
-            let size = if bc.is_width_bounded() && !bc.is_height_bounded() {
-                let ratio = max.width / image_size.width;
-                Size::new(max.width, ratio * image_size.height)
-            } else if bc.is_height_bounded() && !bc.is_width_bounded() {
-                let ratio = max.height / image_size.height;
-                Size::new(ratio * image_size.width, max.height)
-            } else {
-                bc.constrain(image_size)
-            };
-
-            self.widget_size = size;
-
-            return size; */
-
-            /* let mut max = bc.max();
-            max.width = max.width - 170.0;
-
-            let screen_size = screenshot_lib::screen_size();
-            let image_size = self.image_size();
-
-            let ratio = max.width / image_size.width;
-
-            let size = if image_size.height * ratio > screen_size.height - 470.0{
-                let new_ratio = (screen_size.height - 470.0) / image_size.height;
-
-                Size::new(image_size.width * new_ratio, screen_size.height - 470.0)
-            } else {
-                Size::new(max.width, ratio * image_size.height)
-            };
-
-            self.widget_size = size;
-
-            return size; */
         }
 
         fn paint(&mut self, ctx: &mut PaintCtx, _data: &AppState, _env: &Env) {

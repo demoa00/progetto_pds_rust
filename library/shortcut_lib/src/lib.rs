@@ -625,7 +625,21 @@ impl SavePath {
     }
 
     /// This function return the favourite save dir path
-    pub fn get_save_path(&self) -> PathBuf {
+    /// and verify that this path is valid
+    pub fn get_save_path_for_save(&mut self) -> PathBuf {
+        match read_dir(&self.save_path.clone()) {
+            Ok(_) => {}
+            Err(_) => {
+                SavePath::create_toml();
+                self.save_path = SavePath::from_toml().save_path;
+            }
+        }
+
+        return self.save_path.clone();
+    }
+
+    /// This function return the favourite save dir path
+    pub fn get_save_path_for_view(&self) -> PathBuf {
         return self.save_path.clone();
     }
 

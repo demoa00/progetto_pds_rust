@@ -107,7 +107,7 @@ pub struct AppState {
     #[data(ignore)]
     thickness: f64,
     #[data(ignore)]
-    img_saved: bool,
+    is_img_empty: bool,
 }
 
 impl AppState {
@@ -125,7 +125,7 @@ impl AppState {
             area_to_crop: Area::new(),
             canvas: Canvas::new(),
             thickness: 1.0,
-            img_saved: false,
+            is_img_empty: true,
         }
     }
 
@@ -134,7 +134,7 @@ impl AppState {
     }
 
     pub fn set_buf(&mut self, buf: ImageBuf) {
-        self.img_saved = false;
+        self.is_img_empty = false;
 
         let is_empty = self.buf_view.raw_pixels().is_empty();
 
@@ -162,8 +162,12 @@ impl AppState {
             .expect("Unable to copy image on clipboard");
     }
 
-    pub fn get_save_path(&self) -> PathBuf {
-        return self.options.save_path.get_save_path().clone();
+    pub fn get_save_path_for_save(&mut self) -> PathBuf {
+        return self.options.save_path.get_save_path_for_save().clone();
+    }
+
+    pub fn get_save_path_for_view(&self) -> PathBuf {
+        return self.options.save_path.get_save_path_for_view().clone();
     }
 
     pub fn get_extension(&self) -> String {
@@ -242,12 +246,12 @@ impl AppState {
         self.text_buffer.clone()
     }
 
-    pub fn is_img_saved(&self) -> bool {
-        return self.img_saved;
+    pub fn get_is_img_empty(&self) -> bool {
+        return self.is_img_empty;
     }
 
     pub fn reset_img(&mut self) {
-        self.img_saved = false;
+        self.is_img_empty = true;
 
         self.buf_view = ImageBuf::empty();
     }
@@ -399,7 +403,7 @@ impl AppState {
     }
 
     pub fn save_img(&mut self) {
-        let mut path = self.get_save_path();
+        let mut path = self.get_save_path_for_save();
         let extension = self.get_extension();
         let img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(
             self.buf_view.width() as u32,
@@ -425,13 +429,11 @@ impl AppState {
             path.set_extension(extension);
             img.save(path).expect("Error in saving image!");
         });
-
-        self.img_saved = true;
     }
 
     pub fn save_img_as(&mut self) {
         let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
-        let path = self.get_save_path();
+        let path = self.get_save_path_for_save();
         let img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(
             self.buf_view.width() as u32,
             self.buf_view.height() as u32,
@@ -455,7 +457,7 @@ impl AppState {
                 .set_location(&path)
                 .add_filter("JPG", &["jpg", "jpeg", "jpe", "jfif"])
                 .add_filter("PNG", &["png"])
-                .add_filter("GIF", &["gif"]) //le gif non vanno
+                .add_filter("GIF", &["gif"])
                 .show_save_single_file()
                 .unwrap()
             {
@@ -463,8 +465,6 @@ impl AppState {
                 Option::<PathBuf>::None => {}
             }
         });
-
-        self.img_saved = true;
     }
 
     pub fn new_painter(&self) -> Painter<AppState> {
