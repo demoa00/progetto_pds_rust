@@ -17,8 +17,8 @@ use strum::IntoEnumIterator;
 use native_dialog::MessageDialog;
 
 const UI_IMG_PATH: &str = "./ui_img";
-const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::BLACK);
-const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::Rgba32(0x202020FF));
+const TOP_BAR_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::Rgba32(0x202020ff));
+const BOTTOM_PAGE_COLOR: BackgroundBrush<AppState> = BackgroundBrush::Color(Color::Rgba32(0x404040ff));
 
 pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib::AppState> {
     let mut base = Menu::empty();
@@ -100,6 +100,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/fullscreen.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |ctx, data: &mut AppState, _| {
                             data.set_edit_state(EditState::None);
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
@@ -109,6 +110,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |ctx, data: &mut AppState, _| {
                             data.set_edit_state(EditState::None);
                             prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
@@ -120,7 +122,8 @@ impl View {
                     let button_drawing = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
                         Image::new(
                         ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap(),
-                        ), 
+                        ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| data.set_edit_state(EditState::Drawing),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
@@ -138,6 +141,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/copy.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| data.copy_to_clipboard(),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
@@ -152,6 +156,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/save.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| data.save_img(),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
@@ -166,6 +171,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |ctx, data: &mut AppState, _| {
                             if !data.get_is_img_empty() {
                                 match MessageDialog::new().set_title("Do you want to exit the editing window?")
@@ -215,25 +221,38 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_red.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| { data.canvas.set_color(0xff0000ff);}
+                        canvas::canvas::Shape::Color(0xff0000ff),
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_color(0xff0000ff);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        }
                     );
                     let button_green_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_green.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_color(0x00ff00ff);}
+                        canvas::canvas::Shape::Color(0x00ff00ff),
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_color(0x00ff00ff);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        }
                     );
                     let button_blue_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_blu.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_color(0x0000ffff);}
+                        canvas::canvas::Shape::Color(0x0000ffff),
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_color(0x0000ffff);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        }
                     );
 
                     let button_none = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| {data.set_edit_state(EditState::None)},
                     );
 
@@ -241,43 +260,76 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/rubber.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Rubber)},
+                        canvas::canvas::Shape::Rubber,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_shape(canvas::canvas::Shape::Rubber);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
                     let button_fill = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/fill.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_fill(!data.canvas.get_fill())}
+                        canvas::canvas::Shape::Fill,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_fill(!data.canvas.get_fill());
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        }
                     );
                     let button_free = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/free.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Free)},
+                        canvas::canvas::Shape::Free,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_shape(canvas::canvas::Shape::Free);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
                     let button_line = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/line.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Line)},
+                        canvas::canvas::Shape::Line,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_shape(canvas::canvas::Shape::Line);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
                     let button_rectangle = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/rectangle.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Rectangle)},
+                        canvas::canvas::Shape::Rectangle,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_shape(canvas::canvas::Shape::Rectangle);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
                     let button_circle = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/circle.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Cirle)},
+                        canvas::canvas::Shape::Cirle,
+                        |ctx, data: &mut AppState, _| {
+                            data.canvas.set_shape(canvas::canvas::Shape::Cirle);
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
                     let button_scissors = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/scissors.png", UI_IMG_PATH)).unwrap(),
                         ),
-                        |_, data: &mut AppState, _| {data.canvas.set_shape(canvas::canvas::Shape::Cut)},
+                        canvas::canvas::Shape::Cut,
+                        |ctx, data: &mut AppState, _| {
+                            if data.canvas.get_shape() == canvas::canvas::Shape::Cut{
+                                data.canvas.set_shape(canvas::canvas::Shape::None)
+                            } else{
+                                data.canvas.set_shape(canvas::canvas::Shape::Cut)
+                            }
+
+                            ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
+                        },
                     );
 
                     FlexMod::row(false)
@@ -295,6 +347,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/check.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| {
                             data.resize_img();
                             data.set_edit_state(EditState::Drawing);
@@ -305,6 +358,7 @@ impl View {
                         Image::new(
                             ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
                         ),
+                        canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| {
                             data.clear_highlight();
                             data.set_edit_state(EditState::Drawing)
@@ -329,6 +383,7 @@ impl View {
             ViewState::MenuView => {
                 let button_return = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
+                    canvas::canvas::Shape::None,
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
 
@@ -354,8 +409,11 @@ impl View {
                 .annotated(2.0, 1.0)
                 .fix_width(120.0)
                 .lens(AppState::thickness);
-        
-        return thickness_slider;
+        let mut label = Label::new("Thickness");
+        label.set_text_size(10.0);
+        label.set_text_color(Color::WHITE);
+
+        return Flex::column().with_child(label).with_child(thickness_slider);
     }
 
     fn build_bottom_page_widget(view_state: &ViewState) -> impl Widget<AppState> {
@@ -465,6 +523,7 @@ impl MenuOption {
                 )
                 .with_child(TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/edit.png", UI_IMG_PATH)).unwrap()),
+                    canvas::canvas::Shape::None,
                     move |_ctx, data: &mut AppState, _| {
                         data.set_edit_state(EditState::PathEditing);
                         data.update_save_path();
@@ -523,6 +582,7 @@ impl MenuOption {
                                             ))
                                             .unwrap(),
                                         ),
+                                        canvas::canvas::Shape::None,
                                         move |_, data: &mut AppState, _| {
                                             data.set_edit_state(EditState::ShortcutEditing(
                                                 act2.clone(),

@@ -2,47 +2,52 @@ pub mod druid_mod {
     use druid::debug_state::DebugState;
     use druid::widget::{prelude::*, SizedBox};
     use druid::widget::{Click, ControllerHost, Flex, Image, Label, LabelText, ZStack};
-    use druid::{theme, Affine, Data, Insets, LinearGradient, UnitPoint};
+    use druid::{theme, Affine, Insets, LinearGradient, UnitPoint, Selector};
     use druid::{Color, WidgetExt};
+    use event_lib::canvas::canvas::Shape;
+    use event_lib::AppState;
 
     const LABEL_INSETS: Insets = Insets::uniform_xy(8., 2.);
     const BUTTON_DIM: (f64, f64) = (45.0, 45.0);
 
-    pub struct TransparentButton<T> {
-        label: Label<T>,
+    pub struct TransparentButton {
+        label: Label<AppState>,
         label_size: Size,
+        shape: Shape,
     }
 
-    impl<T: Data> TransparentButton<T> {
-        pub fn new(text: impl Into<LabelText<T>>) -> TransparentButton<T> {
-            TransparentButton::from_label(Label::new(text))
+    impl TransparentButton {
+        pub fn new(text: impl Into<LabelText<AppState>>, shape: Shape) -> TransparentButton {
+            TransparentButton::from_label(Label::new(text), shape)
         }
 
-        pub fn from_label(label: Label<T>) -> TransparentButton<T> {
+        pub fn from_label(label: Label<AppState>, shape: Shape) -> TransparentButton {
             TransparentButton {
                 label,
                 label_size: Size::ZERO,
+                shape,
             }
         }
 
         pub fn on_click(
             self,
-            f: impl Fn(&mut EventCtx, &mut T, &Env) + 'static,
-        ) -> ControllerHost<Self, Click<T>> {
+            f: impl Fn(&mut EventCtx, &mut AppState, &Env) + 'static,
+        ) -> ControllerHost<Self, Click<AppState>> {
             ControllerHost::new(self, Click::new(f))
         }
 
         pub fn with_bg(
             bg: Image,
-            f: impl Fn(&mut EventCtx, &mut T, &Env) + 'static,
-        ) -> SizedBox<T> {
+            shape: Shape,
+            f: impl Fn(&mut EventCtx, &mut AppState, &Env) + 'static,
+        ) -> SizedBox<AppState> {
             let img_with_padding = Flex::column()
                 .with_flex_child(bg.fix_size(BUTTON_DIM.0 - 20.0, BUTTON_DIM.1 - 20.0), 1.0)
                 .padding((0.0, 15.0));
 
             ZStack::new(img_with_padding)
                 .with_centered_child(
-                    TransparentButton::new("")
+                    TransparentButton::new("", shape)
                         .on_click(f)
                         .fix_size(BUTTON_DIM.0, BUTTON_DIM.1),
                 )
@@ -50,9 +55,9 @@ pub mod druid_mod {
         }
     }
 
-    impl<T: Data> Widget<T> for TransparentButton<T> {
+    impl Widget<AppState> for TransparentButton {
         //#[instrument(name = "Button", level = "trace", skip(self, ctx, event, _data, _env))]
-        fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut T, _env: &Env) {
+        fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut AppState, _env: &Env) {
             match event {
                 Event::MouseDown(_) => {
                     if !ctx.is_disabled() {
@@ -68,12 +73,23 @@ pub mod druid_mod {
                     }
                     ctx.set_active(false);
                 }
+                Event::Command(c) => {
+                    if c.is(Selector::<()>::new("repaint")) {
+                        ctx.request_paint();
+                    }
+                }
                 _ => (),
             }
         }
 
         //#[instrument(name = "Button", level = "trace", skip(self, ctx, event, data, env))]
-        fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &T, env: &Env) {
+        fn lifecycle(
+            &mut self,
+            ctx: &mut LifeCycleCtx,
+            event: &LifeCycle,
+            data: &AppState,
+            env: &Env,
+        ) {
             if let LifeCycle::HotChanged(_) | LifeCycle::DisabledChanged(_) = event {
                 ctx.request_paint();
             }
@@ -81,7 +97,7 @@ pub mod druid_mod {
         }
 
         //#[instrument(name = "Button", level = "trace", skip(self, ctx, old_data, data, env))]
-        fn update(&mut self, ctx: &mut UpdateCtx, old_data: &T, data: &T, env: &Env) {
+        fn update(&mut self, ctx: &mut UpdateCtx, old_data: &AppState, data: &AppState, env: &Env) {
             self.label.update(ctx, old_data, data, env)
         }
 
@@ -90,7 +106,7 @@ pub mod druid_mod {
             &mut self,
             ctx: &mut LayoutCtx,
             bc: &BoxConstraints,
-            data: &T,
+            data: &AppState,
             env: &Env,
         ) -> Size {
             bc.debug_check("Button");
@@ -112,16 +128,18 @@ pub mod druid_mod {
         }
 
         //#[instrument(name = "Button", level = "trace", skip(self, ctx, data, env))]
-        fn paint(&mut self, ctx: &mut PaintCtx, data: &T, env: &Env) {
+        fn paint(&mut self, ctx: &mut PaintCtx, data: &AppState, env: &Env) {
             let is_active = ctx.is_active() && !ctx.is_disabled();
             let is_hot = ctx.is_hot();
             let size = ctx.size();
             let stroke_width = env.get(theme::BUTTON_BORDER_WIDTH);
-            
+
             let rounded_rect = size
                 .to_rect()
                 .inset(-stroke_width / 2.0)
                 .to_rounded_rect(env.get(theme::BUTTON_BORDER_RADIUS));
+
+            let is_selected = is_selected(self.shape, data);
 
             let bg_gradient = if ctx.is_disabled() {
                 LinearGradient::new(
@@ -132,14 +150,23 @@ pub mod druid_mod {
                         Color::rgba(0.0, 0.0, 0.0, 0.0),
                     ),
                 )
+            } else if is_selected {
+                LinearGradient::new(
+                    UnitPoint::TOP,
+                    UnitPoint::BOTTOM,
+                    (
+                        Color::rgba(0.0, 153.0, 153.0, 0.1),
+                        Color::rgba(0.0, 153.0, 153.0, 0.1),
+                    ),
+                )
             } else if is_active {
                 // Color when pressed
                 LinearGradient::new(
                     UnitPoint::TOP,
                     UnitPoint::BOTTOM,
                     (
-                        Color::rgba(0.0, 0.0, 0.0, 0.5),
-                        Color::rgba(0.0, 0.0, 0.0, 0.5),
+                        Color::rgba(0.0, 153.0, 153.0, 0.1),
+                        Color::rgba(0.0, 153.0, 153.0, 0.1),
                     ),
                 )
             } else {
@@ -154,7 +181,9 @@ pub mod druid_mod {
                 )
             };
 
-            let border_color = if is_hot {
+            let border_color = if is_selected {
+                Color::rgba(0.0, 153.0, 153.0, 0.5)
+            } else if is_hot {
                 Color::rgba(0.0, 153.0, 153.0, 0.5)
             } else {
                 Color::rgba(0.0, 0.0, 0.0, 0.0)
@@ -172,12 +201,26 @@ pub mod druid_mod {
             });
         }
 
-        fn debug_state(&self, _data: &T) -> DebugState {
+        fn debug_state(&self, _data: &AppState) -> DebugState {
             DebugState {
                 display_name: self.short_type_name().to_string(),
                 main_value: self.label.text().to_string(),
                 ..Default::default()
             }
+        }
+    }
+
+    fn is_selected(button_shape: Shape, data: &AppState) -> bool {
+        match button_shape {
+            Shape::Line => button_shape == data.canvas.get_shape(),
+            Shape::Cirle => button_shape == data.canvas.get_shape(),
+            Shape::Rectangle => button_shape == data.canvas.get_shape(),
+            Shape::Free => button_shape == data.canvas.get_shape(),
+            Shape::Rubber => button_shape == data.canvas.get_shape(),
+            Shape::Cut => button_shape == data.canvas.get_shape(),
+            Shape::Fill => data.canvas.get_fill(),
+            Shape::Color(val) => val == data.canvas.get_color(), 
+            _ => false,
         }
     }
 }

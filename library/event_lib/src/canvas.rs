@@ -1,8 +1,8 @@
 pub mod canvas {
-    use druid::{im::HashMap, piet::ImageFormat, Data, ImageBuf};
+    use druid::{im::HashMap, piet::ImageFormat, ImageBuf};
     use std::collections::{HashSet, VecDeque};
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum Shape {
         Line,
         Cirle,
@@ -11,6 +11,8 @@ pub mod canvas {
         Rubber,
         Cut,
         None,
+        Fill,
+        Color(u32),
     }
 
     #[derive(Debug, Clone)]
