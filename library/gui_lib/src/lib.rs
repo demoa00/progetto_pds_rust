@@ -37,14 +37,18 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             )
             .entry(
                 MenuItem::new("Save")
-                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img())
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        data.save_img();
+                    })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::Save)
                     }),
             )
             .entry(
                 MenuItem::new("Save as...")
-                    .on_activate(|_ctx, data: &mut AppState, _| data.save_img_as())
+                    .on_activate(|_ctx, data: &mut AppState, _| {
+                        data.save_img_as();
+                    })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
                     }),
@@ -623,7 +627,7 @@ impl MenuOption {
             screen_indexes.push(((i+1).to_string(), i));
         }
         screen_menu.add_option("Index".to_string(), RadioGroup::row(screen_indexes).lens(AppState::screen_index));
-        screen_menu.build().controller(WindowController::new())
+        screen_menu.build()
     }
 }
 
@@ -659,7 +663,7 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
 
                 child.event(ctx, event, data, env);
             },
-            _ => { child.event(ctx, event, data, env);},
+            _ => child.event(ctx, event, data, env),
         }
     }
 }

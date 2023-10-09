@@ -242,8 +242,8 @@ pub mod canvas_widget {
             let win_size = layout_ctx.window().get_size();
             let image_size = self.image_size();
 
-            let w = win_size.width;
-            let h = win_size.height - 222.0;
+            let w = bc.max().width;
+            let h = win_size.height - 250.0;
 
             let w_ratio = w / image_size.width;
             let h_ratio = h / image_size.height;

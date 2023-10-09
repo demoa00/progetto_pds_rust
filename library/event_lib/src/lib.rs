@@ -316,7 +316,7 @@ impl AppState {
                     let from = ((r + offset_r) * img_size.0 + offset_c) * 4;
                     let to = ((r + offset_r) * img_size.0 + offset_c + area.width) * 4;
                     for y in (from..to).step_by(4) {
-                        container[(y + 3) as usize] = 150;
+                        container[(y + 3) as usize] = 100;
                     }
                 }
                 let new_buf_view = ImageBuf::from_raw(
@@ -544,7 +544,7 @@ impl AppDelegate<AppState> for EventHandler {
                             if ready {
                                 data.set_buf(
                                     take_screenshot_area(
-                                        data.get_screen_index(),
+                                        0,
                                         self.start_point,
                                         self.end_point,
                                     )
