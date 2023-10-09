@@ -9,9 +9,9 @@ use druid::{
     image::{ImageBuffer, Rgba},
     keyboard_types::Key,
     piet::ImageFormat,
-    widget::{Controller, Flex, Painter},
-    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Rect,
-    RenderContext, Selector, Target, Widget, WidgetExt, WindowDesc,
+    widget::{Controller, Flex},
+    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Selector,
+    Target, Widget, WidgetExt, WindowDesc,
 };
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
@@ -427,7 +427,18 @@ impl AppState {
 
             path.push(default_file_name);
             path.set_extension(extension);
-            img.save(path).expect("Error in saving image!");
+
+            match img.save(&path) {
+                Ok(_) => {}
+                Err(_) => {
+                    MessageDialog::new()
+                        .set_title("Error in saving image")
+                        .set_text(&format!("Unable to save image to default path: {}", path.to_str().unwrap()))
+                        .set_type(native_dialog::MessageType::Error)
+                        .show_alert()
+                        .unwrap();
+                }
+            }
         });
     }
 
@@ -461,46 +472,24 @@ impl AppState {
                 .show_save_single_file()
                 .unwrap()
             {
-                Some(path) => img.save(path).expect("Error in saving image!"),
+                Some(path) => match img.save(&path) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        MessageDialog::new()
+                            .set_title("Error in saving image")
+                            .set_text(&format!("Unable to save image to selected path: {}", path.to_str().unwrap()))
+                            .set_type(native_dialog::MessageType::Error)
+                            .show_alert()
+                            .unwrap();
+                    }
+                },
                 Option::<PathBuf>::None => {}
             }
         });
     }
-
-    pub fn new_painter(&self) -> Painter<AppState> {
-        let painter = Painter::new(|ctx, data: &AppState, _| {
-            let bound = ctx.size().to_rect();
-            let pixels = data.buf_view.raw_pixels().to_vec();
-            let mut img_colors = Vec::new();
-
-            println!("Sono in paint: {}", pixels.len());
-            println!("rect: {:?}", bound);
-            for i in (0..pixels.len() - 4).step_by(4) {
-                let mut color: u32 = 0;
-                color = (color << 8) | pixels[i] as u32;
-                color = (color << 8) | pixels[i + 1] as u32;
-                color = (color << 8) | pixels[i + 2] as u32;
-                color = (color << 8) | pixels[i + 3] as u32;
-
-                img_colors.push(Color::Rgba32(color));
-            }
-
-            let mut i = 0;
-            for x in (bound.x0 as usize)..=((bound.x1.floor() - 1.0) as usize) {
-                for y in (bound.y0 as usize)..=((bound.y1.floor() - 1.0) as usize) {
-                    let pixel = Rect::new(x as f64, y as f64, (x + 1) as f64, (y + 1) as f64);
-                    ctx.fill(pixel, &img_colors[i]);
-                    i = i + 1;
-                }
-            }
-
-            //ctx.fill(Rect::new(10.0,10.0,100.0,100.0), &Color::from_rgba32_u32(0xff0000ff))
-        });
-
-        return painter;
-    }
 }
 
+#[derive(Debug)]
 pub struct EventHandler {
     keys_pressed: Vector<druid::keyboard_types::Key>,
     start_point: (i32, i32),
@@ -543,12 +532,8 @@ impl AppDelegate<AppState> for EventHandler {
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
                                 data.set_buf(
-                                    take_screenshot_area(
-                                        0,
-                                        self.start_point,
-                                        self.end_point,
-                                    )
-                                    .unwrap(),
+                                    take_screenshot_area(0, self.start_point, self.end_point)
+                                        .unwrap(),
                                 );
                                 data.set_edit_state(None);
                                 ctx.submit_command(Command::new(
@@ -583,7 +568,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                     self.start_point = start_point;
                 }
-
+                
                 return Some(event);
             }
             Event::MouseUp(ref mouse_event) => {

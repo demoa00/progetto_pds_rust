@@ -79,6 +79,10 @@ pub mod canvas_widget {
                             mouse_event.pos.y.ceil() as usize,
                         );
 
+                        if self.start_point == self.end_point{
+                            return;
+                        }
+
                         let image_size = self.image_data.size();
 
                         let ratio = image_size.width / self.widget_size.width;

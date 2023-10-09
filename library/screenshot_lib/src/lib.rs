@@ -159,6 +159,7 @@ pub fn number_of_screens() -> usize {
     Screen::all().unwrap().len()
 }
 
+/// Return the size of main screen
 pub fn screen_size() -> Size {
     let screen = Screen::all().unwrap()[0].display_info;
     
