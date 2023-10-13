@@ -1,5 +1,4 @@
 pub mod canvas;
-
 use arboard::{Clipboard, ImageData};
 use canvas::canvas::Canvas;
 use chrono::Local;
@@ -10,8 +9,8 @@ use druid::{
     keyboard_types::Key,
     piet::ImageFormat,
     widget::{Controller, Flex},
-    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ImageBuf, Lens, Selector,
-    Target, Widget, WidgetExt, WindowDesc,
+    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ExtEventSink, ImageBuf,
+    Lens, Selector, Target, Widget, WidgetExt, WindowDesc,
 };
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 use screenshot_lib::*;
@@ -433,7 +432,10 @@ impl AppState {
                 Err(_) => {
                     MessageDialog::new()
                         .set_title("Error in saving image")
-                        .set_text(&format!("Unable to save image to default path: {}", path.to_str().unwrap()))
+                        .set_text(&format!(
+                            "Unable to save image to default path: {}",
+                            path.to_str().unwrap()
+                        ))
                         .set_type(native_dialog::MessageType::Error)
                         .show_alert()
                         .unwrap();
@@ -442,7 +444,7 @@ impl AppState {
         });
     }
 
-    pub fn save_img_as(&mut self) {
+    pub fn save_img_as(&mut self, ctx: ExtEventSink) {
         let default_file_name = format!("image {}", Local::now().format("%y-%m-%d %H%M%S")); //name from timestamp
         let path = self.get_save_path_for_save();
         let img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(
@@ -463,6 +465,9 @@ impl AppState {
         }
 
         thread::spawn(move || {
+            ctx.submit_command(Selector::new("hide"), (), Target::Auto)
+                .expect("Unable to submit a command");
+
             match FileDialog::new()
                 .set_filename(&default_file_name)
                 .set_location(&path)
@@ -477,7 +482,10 @@ impl AppState {
                     Err(_) => {
                         MessageDialog::new()
                             .set_title("Error in saving image")
-                            .set_text(&format!("Unable to save image to selected path: {}", path.to_str().unwrap()))
+                            .set_text(&format!(
+                                "Unable to save image to selected path: {}",
+                                path.to_str().unwrap()
+                            ))
                             .set_type(native_dialog::MessageType::Error)
                             .show_alert()
                             .unwrap();
@@ -485,6 +493,9 @@ impl AppState {
                 },
                 Option::<PathBuf>::None => {}
             }
+
+            ctx.submit_command(Selector::new("show"), (), Target::Auto)
+                .expect("Unable to submit a command");
         });
     }
 }
@@ -528,6 +539,8 @@ impl AppDelegate<AppState> for EventHandler {
                                 take_screenshot_with_delay(data.timer, data.get_screen_index())
                                     .unwrap(),
                             );
+
+                            ctx.submit_command(Command::new(Selector::new("restore"), (), Target::Auto));
                         }
                         ScreenshotMode::Cropped(ready) => {
                             if ready {
@@ -568,7 +581,7 @@ impl AppDelegate<AppState> for EventHandler {
 
                     self.start_point = start_point;
                 }
-                
+
                 return Some(event);
             }
             Event::MouseUp(ref mouse_event) => {

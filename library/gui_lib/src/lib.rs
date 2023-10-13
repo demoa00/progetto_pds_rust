@@ -46,8 +46,8 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
             )
             .entry(
                 MenuItem::new("Save as...")
-                    .on_activate(|_ctx, data: &mut AppState, _| {
-                        data.save_img_as();
+                    .on_activate(|ctx, _data: &mut AppState, _| {
+                        ctx.submit_command(Command::new(Selector::new("save"), (), Target::Auto));
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
@@ -659,9 +659,20 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
             Event::Command(ref c) => {
                 if c.is(Selector::<()>::new("new_screenshot")){
                     prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
+                }else if c.is(Selector::<()>::new("restore")) {
+                    let mut win = ctx.window().clone();
+                    win.set_window_state(druid::WindowState::Restored);
+                }else if c.is(Selector::<()>::new("save")) {
+                    data.save_img_as(ctx.get_external_handle());
+                }else if c.is(Selector::<()>::new("hide")) {
+                    let win = ctx.window().clone();
+                    win.hide();
+                }else if c.is(Selector::<()>::new("show")) {
+                    let win = ctx.window().clone();
+                    win.show();
+                }else{
+                    child.event(ctx, event, data, env)
                 }
-
-                child.event(ctx, event, data, env);
             },
             _ => child.event(ctx, event, data, env),
         }
