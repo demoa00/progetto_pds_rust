@@ -33,6 +33,16 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts()
                             .extract_value_for_menu(Action::NewScreenshot)
+                    }).enabled_if(|data: &AppState, _| {
+                        if (data.get_edit_state() == EditState::None) || (data.get_edit_state() == EditState::Drawing) {
+                            if data.get_view_state() == ViewState::MainView {
+                                true
+                            }else{
+                                false
+                            }
+                        }else{
+                            false
+                        }
                     }),
             )
             .separator()
@@ -43,6 +53,16 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::Save)
+                    }).enabled_if(|data: &AppState, _| {
+                        if (data.get_edit_state() == EditState::None) || (data.get_edit_state() == EditState::Drawing) {
+                            if data.get_view_state() == ViewState::MainView {
+                                true
+                            }else{
+                                false
+                            }
+                        }else{
+                            false
+                        }
                     }),
             )
             .entry(
@@ -52,19 +72,18 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                     })
                     .dynamic_hotkey(|data: &AppState, _env: &Env| {
                         data.get_shortcuts().extract_value_for_menu(Action::SaveAs)
+                    }).enabled_if(|data: &AppState, _| {
+                        if (data.get_edit_state() == EditState::None) || (data.get_edit_state() == EditState::Drawing) {
+                            if data.get_view_state() == ViewState::MainView {
+                                true
+                            }else{
+                                false
+                            }
+                        }else{
+                            false
+                        }
                     }),
-            )
-            .enabled_if(|data: &AppState, _| {
-                if (data.get_edit_state() == EditState::None) || (data.get_edit_state() == EditState::Drawing) {
-                    if data.get_view_state() == ViewState::MainView {
-                        true
-                    }else{
-                        false
-                    }
-                }else{
-                    false
-                }
-            }),
+            ),
     );
 
     return base;
@@ -416,16 +435,16 @@ impl View {
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MainView)
             }
             ViewState::MenuView => {
-                let button_return = TransparentButton::with_bg(
+                let button_home = TransparentButton::with_bg(
                     Image::new(ImageBuf::from_file(format!("{}/home.png", UI_IMG_PATH)).unwrap()),
                     canvas::canvas::Shape::None,
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
 
                 FlexMod::row(false)
-                    .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::Start)
+                    .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::End)
                     .must_fill_main_axis(true)
-                    .with_flex_child(button_return, 1.0)
+                    .with_flex_child(button_home, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
                     .with_default_spacer()
             }

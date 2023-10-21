@@ -22,8 +22,8 @@ pub mod canvas_widget {
         pub fn new(image_data: ImageBuf) -> Self {
             CanvasWidget {
                 image_data,
-                start_point: (0, 0),
-                end_point: (0, 0),
+                start_point: (usize::MAX, usize::MAX),
+                end_point: (usize::MAX, usize::MAX),
                 paint_data: None,
                 interpolation: InterpolationMode::Bilinear,
                 clip_area: None,
@@ -66,6 +66,10 @@ pub mod canvas_widget {
                         data.canvas.buf_point.clear();
                     }
                     Shape::Cut => {
+                        if self.start_point == (usize::MAX, usize::MAX) {
+                            return;
+                        }
+
                         self.end_point = (
                             mouse_event.pos.x.ceil() as usize,
                             mouse_event.pos.y.ceil() as usize,
@@ -93,6 +97,10 @@ pub mod canvas_widget {
                     }
                     Shape::None => {}
                     _ => {
+                        if self.start_point == (usize::MAX, usize::MAX) {
+                            return;
+                        }
+
                         self.end_point = (
                             mouse_event.pos.x.ceil() as usize,
                             mouse_event.pos.y.ceil() as usize,
