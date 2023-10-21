@@ -7,7 +7,7 @@ use druid::{
     widget::{*, self}, Color, Env, ImageBuf, KeyOrValue, LocalizedString, Menu, MenuItem, Widget,
     WidgetExt, WindowId, Command, Selector, Target, Event,
 };
-use event_lib::*;
+use event_lib::{*, canvas::canvas::Canvas};
 use flex_mod::druid_mod::*;
 use shortcut_lib::*;
 use screenshot_lib::number_of_screens;
@@ -35,6 +35,7 @@ pub fn build_menu(_window: Option<WindowId>, _data: &AppState) -> Menu<event_lib
                             .extract_value_for_menu(Action::NewScreenshot)
                     }),
             )
+            .separator()
             .entry(
                 MenuItem::new("Save")
                     .on_activate(|_ctx, data: &mut AppState, _| {
@@ -107,21 +108,9 @@ impl View {
                         canvas::canvas::Shape::None,
                         |ctx, data: &mut AppState, _| {
                             data.set_edit_state(EditState::None);
-                            prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen)
+                            prepare_for_screenshot(data, ctx)
                         },
                     );
-                    let button_new_screenshot_cropped = FlexMod::row(screenshot_lib::number_of_screens() == 1).with_flex_child(TransparentButton::with_bg(
-                        Image::new(
-                            ImageBuf::from_file(format!("{}/crop.png", UI_IMG_PATH)).unwrap(),
-                        ),
-                        canvas::canvas::Shape::None,
-                        |ctx, data: &mut AppState, _| {
-                            data.set_edit_state(EditState::None);
-                            prepare_for_screenshot(data, ctx, ScreenshotMode::Cropped(false))
-                        },
-                    ), 1.0).visible_if(|_|{
-                        return screenshot_lib::number_of_screens() == 1;
-                    });
 
                     let button_drawing = FlexMod::row(false).with_flex_child(TransparentButton::with_bg(
                         Image::new(
@@ -131,7 +120,7 @@ impl View {
                         |_, data: &mut AppState, _| data.set_edit_state(EditState::Drawing),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
-                        if !data.get_is_img_empty(){
+                        if !data.is_empty(){
                             match data.get_edit_state() {
                                 EditState::Drawing => false,
                                 _ => true,
@@ -149,7 +138,7 @@ impl View {
                         |_, data: &mut AppState, _| data.copy_to_clipboard(),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
-                        if !data.get_is_img_empty(){
+                        if !data.is_empty(){
                             true
                         }else{
                             false
@@ -164,7 +153,7 @@ impl View {
                         |_, data: &mut AppState, _| data.save_img(),
                     ), 1.0)
                     .visible_if(|data: &AppState| {
-                        if !data.get_is_img_empty(){
+                        if !data.is_empty(){
                             true
                         }else{
                             false
@@ -173,11 +162,11 @@ impl View {
                     
                     let button_options = TransparentButton::with_bg(
                         Image::new(
-                            ImageBuf::from_file(format!("{}/options.png", UI_IMG_PATH)).unwrap(),
+                            ImageBuf::from_file(format!("{}/setting.png", UI_IMG_PATH)).unwrap(),
                         ),
                         canvas::canvas::Shape::None,
                         |ctx, data: &mut AppState, _| {
-                            if !data.get_is_img_empty() {
+                            if !data.is_empty() {
                                 match MessageDialog::new().set_title("Do you want to exit the editing window?")
                                                             .set_text("If you confirm all changes made and the image will be deleted")
                                                             .show_confirm() {
@@ -200,7 +189,6 @@ impl View {
                     let left_part = Flex::row()
                         .main_axis_alignment(druid::widget::MainAxisAlignment::Start)
                         .with_flex_child(button_new_screenshot_full, 1.0)
-                        .with_flex_child(button_new_screenshot_cropped, 1.0)
                         .must_fill_main_axis(false);
 
                     let right_part = Flex::row()
@@ -230,7 +218,14 @@ impl View {
                             data.canvas.set_color(0xff0000ff);
                             ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
                         }
-                    );
+                    ).disabled_if(|data, _|{
+                        match data.canvas.get_shape(){
+                            canvas::canvas::Shape::Rubber => true,
+                            canvas::canvas::Shape::Cut => true,
+                            canvas::canvas::Shape::None => true,
+                            _ => false
+                        }
+                    });
                     let button_green_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_green.png", UI_IMG_PATH)).unwrap(),
@@ -240,7 +235,14 @@ impl View {
                             data.canvas.set_color(0x00ff00ff);
                             ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
                         }
-                    );
+                    ).disabled_if(|data, _|{
+                        match data.canvas.get_shape(){
+                            canvas::canvas::Shape::Rubber => true,
+                            canvas::canvas::Shape::Cut => true,
+                            canvas::canvas::Shape::None => true,
+                            _ => false
+                        }
+                    });
                     let button_blue_color = TransparentButton::with_bg(
                         Image::new(
                             ImageBuf::from_file(format!("{}/paint_blu.png", UI_IMG_PATH)).unwrap(),
@@ -250,11 +252,18 @@ impl View {
                             data.canvas.set_color(0x0000ffff);
                             ctx.submit_command(Command::new(Selector::new("repaint"), (), Target::Auto));
                         }
-                    );
+                    ).disabled_if(|data, _|{
+                        match data.canvas.get_shape(){
+                            canvas::canvas::Shape::Rubber => true,
+                            canvas::canvas::Shape::Cut => true,
+                            canvas::canvas::Shape::None => true,
+                            _ => false
+                        }
+                    });
 
-                    let button_none = TransparentButton::with_bg(
+                    let button_no_drawing = TransparentButton::with_bg(
                         Image::new(
-                            ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
+                            ImageBuf::from_file(format!("{}/no_edit.png", UI_IMG_PATH)).unwrap(),
                         ),
                         canvas::canvas::Shape::None,
                         |_, data: &mut AppState, _| {data.set_edit_state(EditState::None)},
@@ -336,13 +345,35 @@ impl View {
                         },
                     );
 
+                    let button_reset = TransparentButton::with_bg(
+                        Image::new(
+                            ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap(),
+                        ),
+                        canvas::canvas::Shape::None,
+                        |_ctx, data: &mut AppState, _| {
+                            match MessageDialog::new().set_title("Do you want to restore the initial image?")
+                                                            .set_text("If you confirm all changes made will be deleted")
+                                                            .show_confirm() {
+                                    Ok(confirm) => {
+                                        if confirm {
+                                            data.canvas= Canvas::new();
+                                            let img = data.get_buf_reset();
+                                            data.set_buf_view(img);
+                                        }
+                                    },
+                                    Err(e) => panic!("{}", e),
+                                }
+                        },
+                    ).disabled_if(|data, _|{return !data.is_modified();});
+
                     FlexMod::row(false)
                     .with_child(Flex::row().with_child(button_red_color).with_child(button_green_color).with_child(button_blue_color).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(View::build_thickness_slider()).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_free).with_child(button_line).with_child(button_rectangle).with_child(button_circle).with_child(button_rubber).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_fill).padding((20.0,0.0)))
                     .with_child(Flex::row().with_child(button_scissors).padding((20.0,0.0)))
-                    .with_child(Flex::row().with_child(button_none).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_reset).padding((20.0,0.0)))
+                    .with_child(Flex::row().with_child(button_no_drawing).padding((20.0,0.0)))
                     .visible_if(|data: &AppState| data.get_edit_state() == EditState::Drawing).center()
                 };
 
@@ -386,13 +417,13 @@ impl View {
             }
             ViewState::MenuView => {
                 let button_return = TransparentButton::with_bg(
-                    Image::new(ImageBuf::from_file(format!("{}/return.png", UI_IMG_PATH)).unwrap()),
+                    Image::new(ImageBuf::from_file(format!("{}/home.png", UI_IMG_PATH)).unwrap()),
                     canvas::canvas::Shape::None,
                     |_, data: &mut AppState, _| data.set_view_state(ViewState::MainView),
                 );
 
                 FlexMod::row(false)
-                    .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::End)
+                    .main_axis_alignment(flex_mod::druid_mod::MainAxisAlignment::Start)
                     .must_fill_main_axis(true)
                     .with_flex_child(button_return, 1.0)
                     .visible_if(|data: &AppState| data.get_view_state() == ViewState::MenuView)
@@ -413,11 +444,16 @@ impl View {
                 .annotated(2.0, 1.0)
                 .fix_width(120.0)
                 .lens(AppState::thickness);
-        let mut label = Label::new("Thickness");
-        label.set_text_size(10.0);
-        label.set_text_color(Color::WHITE);
+        
+        let mut label_1 = Label::new("Thickness");
+        label_1.set_text_size(10.0);
+        label_1.set_text_color(Color::WHITE);
 
-        return Flex::column().with_child(label).with_child(thickness_slider);
+        let mut label_2 = Label::new("px");
+        label_2.set_text_size(12.0);
+        label_2.set_text_color(Color::WHITE);
+
+        return Flex::column().with_child(label_1).with_child(Flex::row().with_child(thickness_slider).with_child(label_2));
     }
 
     fn build_bottom_page_widget(view_state: &ViewState) -> impl Widget<AppState> {
@@ -606,16 +642,19 @@ impl MenuOption {
         let mut timer_menu = MenuOption::new("Timer".to_string());
         timer_menu.add_option(
             "Duration".to_string(),
-            Slider::new()
-                .with_range(0.0, 10.0)
-                .track_color(KeyOrValue::Concrete(Color::TEAL))
-                .knob_style(KnobStyle::Wedge)
-                .axis(druid::widget::Axis::Horizontal)
-                .with_step(1.0)
-                .annotated(2.0, 1.0)
-                .fix_width(250.0)
-                .padding((0.0, 15.0))
-                .lens(AppState::timer),
+            Flex::row()
+            .with_child(Slider::new()
+                            .with_range(0.0, 10.0)
+                            .track_color(KeyOrValue::Concrete(Color::TEAL))
+                            .knob_style(KnobStyle::Wedge)
+                            .axis(druid::widget::Axis::Horizontal)
+                            .with_step(1.0)
+                            .annotated(2.0, 1.0)
+                            .fix_width(250.0)
+                            .padding((0.0, 15.0))
+                            .lens(AppState::timer))
+            .with_child(Label::new("s").padding(10.0))
+            .align_right()
         );
         timer_menu.build()
     }
@@ -631,7 +670,7 @@ impl MenuOption {
     }
 }
 
-fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: ScreenshotMode) {
+fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx) {
     let mut win = ctx.window().clone();
     
     if win.get_window_state() != druid::WindowState::Minimized{
@@ -639,9 +678,9 @@ fn prepare_for_screenshot(data: &mut AppState, ctx: &mut druid::EventCtx, mode: 
     }
     
     data.reset_img();
-    data.set_screenshot_mode(mode);
-
-    let token = ctx.request_timer(Duration::from_millis(data.get_timer() as u64 + 500));
+    data.set_edit_state(EditState::None);
+    
+    let token = ctx.request_timer(Duration::from_millis(500));
     data.set_screenshot_token(token.into_raw());
 }
 
@@ -658,7 +697,7 @@ impl<W: Widget<AppState>> Controller<AppState, W> for WindowController {
         match event {
             Event::Command(ref c) => {
                 if c.is(Selector::<()>::new("new_screenshot")){
-                    prepare_for_screenshot(data, ctx, ScreenshotMode::Fullscreen);
+                    prepare_for_screenshot(data, ctx);
                 }else if c.is(Selector::<()>::new("restore")) {
                     let mut win = ctx.window().clone();
                     win.set_window_state(druid::WindowState::Restored);

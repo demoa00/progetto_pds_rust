@@ -3,19 +3,17 @@ use arboard::{Clipboard, ImageData};
 use canvas::canvas::Canvas;
 use chrono::Local;
 use druid::{
-    commands,
     im::{HashMap, Vector},
     image::{ImageBuffer, Rgba},
     keyboard_types::Key,
     piet::ImageFormat,
-    widget::{Controller, Flex},
-    AppDelegate, Color, Command, Data, DelegateCtx, Env, Event, EventCtx, ExtEventSink, ImageBuf,
-    Lens, Selector, Target, Widget, WidgetExt, WindowDesc,
+    AppDelegate, Command, Data, DelegateCtx, Env, Event, ExtEventSink, ImageBuf, Lens, Selector,
+    Target,
 };
-use native_dialog::{FileDialog, MessageDialog, MessageType};
+use native_dialog::{FileDialog, MessageDialog};
 use screenshot_lib::*;
 use shortcut_lib::*;
-use std::{borrow::Cow, path::PathBuf, str::FromStr, thread, time::Duration};
+use std::{borrow::Cow, path::PathBuf, str::FromStr, thread};
 use EditState::*;
 
 #[derive(Clone, Data, PartialEq, Eq)]
@@ -32,12 +30,6 @@ pub enum EditState {
 pub enum ViewState {
     MainView,
     MenuView,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Data)]
-pub enum ScreenshotMode {
-    Fullscreen,
-    Cropped(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Data)]
@@ -69,19 +61,11 @@ impl Options {
             Ok(new_path_opt) => match new_path_opt {
                 Some(new_path) => {
                     self.save_path.update_save_path(new_path);
-                    return;
                 }
                 Option::None => {}
             },
             Err(e) => panic!("{e}"),
         }
-
-        MessageDialog::new()
-            .set_title("Unable to update save path")
-            .set_text("Selected path is not valid!")
-            .set_type(MessageType::Warning)
-            .show_alert()
-            .unwrap();
 
         return;
     }
@@ -92,21 +76,24 @@ pub struct AppState {
     #[data(ignore)]
     name: String,
     buf_view: ImageBuf,
+    #[data(ignore)]
+    buf_reset: ImageBuf,
     text_buffer: String,
     view_state: ViewState,
     edit_state: EditState,
-    screenshot_mode: (ScreenshotMode, u64),
+    screenshot_token: u64,
     options: Options,
     timer: f64,
     screen_index: usize,
     #[data(ignore)]
     area_to_crop: Area,
-    #[data(ignore)]
     pub canvas: Canvas,
     #[data(ignore)]
     thickness: f64,
     #[data(ignore)]
-    is_img_empty: bool,
+    empty: bool,
+    #[data(ignore)]
+    modified: bool,
 }
 
 impl AppState {
@@ -114,17 +101,19 @@ impl AppState {
         Self {
             name: format!("Screenshot App"),
             buf_view: ImageBuf::empty(),
+            buf_reset: ImageBuf::empty(),
             text_buffer: String::new(),
             view_state: ViewState::MainView,
             edit_state: EditState::None,
-            screenshot_mode: (ScreenshotMode::Fullscreen, u64::default()),
+            screenshot_token: u64::default(),
             options: Options::new(),
             timer: 0.0,
             screen_index: 0,
             area_to_crop: Area::new(),
             canvas: Canvas::new(),
             thickness: 1.0,
-            is_img_empty: true,
+            empty: true,
+            modified: false,
         }
     }
 
@@ -132,8 +121,8 @@ impl AppState {
         return self.clone().name;
     }
 
-    pub fn set_buf(&mut self, buf: ImageBuf) {
-        self.is_img_empty = false;
+    pub fn set_buf_view(&mut self, buf: ImageBuf) {
+        self.empty = false;
 
         let is_empty = self.buf_view.raw_pixels().is_empty();
 
@@ -146,6 +135,15 @@ impl AppState {
 
     pub fn get_buf_view(&self) -> ImageBuf {
         return self.buf_view.clone();
+    }
+
+    pub fn set_buf_reset(&mut self, buf: ImageBuf) {
+        self.buf_reset = buf;
+    }
+
+    pub fn get_buf_reset(&mut self) -> ImageBuf {
+        self.modified = false;
+        return self.buf_reset.clone();
     }
 
     pub fn copy_to_clipboard(&self) {
@@ -201,20 +199,12 @@ impl AppState {
         self.edit_state.clone()
     }
 
-    pub fn set_screenshot_mode(&mut self, new_screenshot_mode: ScreenshotMode) {
-        self.screenshot_mode.0 = new_screenshot_mode;
-    }
-
-    pub fn get_screenshot_mode(&self) -> ScreenshotMode {
-        self.screenshot_mode.0.clone()
-    }
-
     pub fn set_screenshot_token(&mut self, token: u64) {
-        self.screenshot_mode.1 = token;
+        self.screenshot_token = token;
     }
 
     pub fn get_screenshot_token(&mut self) -> u64 {
-        return self.screenshot_mode.1.clone();
+        return self.screenshot_token;
     }
 
     pub fn set_timer(&mut self, timer: f64) {
@@ -222,6 +212,7 @@ impl AppState {
     }
 
     pub fn get_timer(&self) -> f64 {
+        println!("{}", self.timer);
         self.timer
     }
 
@@ -245,12 +236,25 @@ impl AppState {
         self.text_buffer.clone()
     }
 
-    pub fn get_is_img_empty(&self) -> bool {
-        return self.is_img_empty;
+    pub fn is_empty(&self) -> bool {
+        return self.empty;
+    }
+
+    pub fn is_modified(&self) -> bool {
+        if self.modified {
+            return true;
+        } else {
+            if self.canvas.modified_pixel.is_empty() {
+                return false;
+            } else {
+                return true;
+            }
+        }
     }
 
     pub fn reset_img(&mut self) {
-        self.is_img_empty = true;
+        self.empty = true;
+        self.modified = false;
 
         self.buf_view = ImageBuf::empty();
     }
@@ -283,7 +287,7 @@ impl AppState {
             width as usize,
             height as usize,
         );
-        self.set_buf(new_buf_view);
+        self.set_buf_view(new_buf_view);
     }
 
     pub fn highlight_area(&mut self, start_point: (i32, i32), end_point: (i32, i32)) {
@@ -325,7 +329,7 @@ impl AppState {
                     img_size.1 as usize,
                 );
                 self.set_area_to_crop(area);
-                self.set_buf(new_buf_view);
+                self.set_buf_view(new_buf_view);
             }
             Option::None => return,
         }
@@ -361,7 +365,8 @@ impl AppState {
 
         let old_width = self.buf_view.width();
 
-        self.set_buf(new_buf_view);
+        self.set_buf_view(new_buf_view);
+        self.modified = true;
 
         let mut new_modified_pixel = HashMap::new();
         self.canvas.modified_pixel.iter().for_each(|e| {
@@ -521,7 +526,7 @@ impl AppDelegate<AppState> for EventHandler {
     fn event(
         &mut self,
         ctx: &mut DelegateCtx,
-        window_id: druid::WindowId,
+        _window_id: druid::WindowId,
         event: druid::Event,
         data: &mut AppState,
         _env: &Env,
@@ -533,44 +538,20 @@ impl AppDelegate<AppState> for EventHandler {
                         data.set_screen_index(0);
                     }
 
-                    match data.get_screenshot_mode() {
-                        ScreenshotMode::Fullscreen => {
-                            data.set_buf(
-                                take_screenshot_with_delay(data.timer, data.get_screen_index())
-                                    .unwrap(),
-                            );
+                    let img =
+                        take_screenshot_with_delay(data.timer, data.get_screen_index()).unwrap();
 
-                            ctx.submit_command(Command::new(Selector::new("restore"), (), Target::Auto));
-                        }
-                        ScreenshotMode::Cropped(ready) => {
-                            if ready {
-                                data.set_buf(
-                                    take_screenshot_area(0, self.start_point, self.end_point)
-                                        .unwrap(),
-                                );
-                                data.set_edit_state(None);
-                                ctx.submit_command(Command::new(
-                                    commands::CLOSE_WINDOW,
-                                    (),
-                                    window_id,
-                                ));
-                            } else {
-                                ctx.new_window(
-                                    WindowDesc::new(build_highlighter())
-                                        .show_titlebar(false)
-                                        .transparent(true)
-                                        .set_window_state(druid::WindowState::Maximized)
-                                        .set_always_on_top(true),
-                                );
-                                data.set_edit_state(MouseDetecting);
-                            }
-                        }
-                    }
+                    data.set_buf_view(img.clone());
+                    data.set_buf_reset(img);
+
+                    ctx.submit_command(Command::new(Selector::new("restore"), (), Target::Auto));
+
+                    data.set_screenshot_token(u64::MAX);
+
+                    return Some(event);
+                } else {
+                    return Some(event);
                 }
-
-                data.set_screenshot_token(u64::MAX);
-
-                return Some(event);
             }
             Event::MouseDown(ref mouse_event) => {
                 if data.get_edit_state() == MouseDetecting {
@@ -592,8 +573,6 @@ impl AppDelegate<AppState> for EventHandler {
                     );
 
                     self.end_point = end_point;
-
-                    data.set_screenshot_mode(ScreenshotMode::Cropped(true));
                 }
 
                 return Some(event);
@@ -644,41 +623,9 @@ impl AppDelegate<AppState> for EventHandler {
                 ctx.submit_command(Command::new(Selector::new("resize"), (), Target::Auto));
                 return Some(event);
             }
-            _ => Some(event),
+            _ => {
+                return Some(event);
+            }
         }
-    }
-}
-
-fn build_highlighter() -> impl Widget<AppState> {
-    let timer_sender = TimerSender::new();
-    Flex::<AppState>::row()
-        .background(Color::rgba(177.0, 171.0, 171.0, 0.389))
-        .controller(timer_sender)
-}
-
-struct TimerSender;
-
-impl TimerSender {
-    fn new() -> Self {
-        TimerSender
-    }
-}
-
-impl<W: Widget<AppState>> Controller<AppState, W> for TimerSender {
-    fn event(
-        &mut self,
-        child: &mut W,
-        ctx: &mut EventCtx,
-        event: &Event,
-        data: &mut AppState,
-        env: &Env,
-    ) {
-        if let Event::MouseUp(_) = event {
-            let token = ctx.request_timer(Duration::from_millis(600));
-            data.set_screenshot_token(token.into_raw());
-            let mut win = ctx.window().clone();
-            win.set_window_state(druid::WindowState::Minimized);
-        }
-        child.event(ctx, event, data, env)
     }
 }

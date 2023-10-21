@@ -39,49 +39,6 @@ fn take_screenshot(current_screen: usize) -> Option<ImageBuf> {
     return Some(image_view);
 }
 
-/// This function recieve the current screen on witch the screenshot has to be taken.
-/// In this case, the area is also passed after a drag&drop in order to take a restricted area
-/// then it saves a screenshot of the whole selected area in a ImageBuffer.
-/// It returns an Option so, in case the selected area is bigger than the current selected screen, None is returned.
-pub fn take_screenshot_area(
-    current_screen: usize,
-    start_coords: (i32, i32),
-    end_coords: (i32, i32),
-) -> Option<ImageBuf> {
-    let screens = Screen::all().unwrap();
-    let current_screen = screens[current_screen];
-    let screen_infos = current_screen.display_info;
-
-    let calculated_area = calculate_area(
-        (screen_infos.width, screen_infos.height),
-        start_coords,
-        end_coords,
-    );
-
-    match calculated_area {
-        Some(area) => {
-            let image = current_screen
-                .capture_area(
-                    area.left_corner.0 as i32,
-                    area.left_corner.1 as i32,
-                    area.width,
-                    area.height,
-                )
-                .unwrap();
-            let img_vec = image.clone().to_vec();
-
-            let image_view = ImageBuf::from_raw(
-                img_vec,
-                druid::piet::ImageFormat::RgbaSeparate,
-                area.width as usize,
-                area.height as usize,
-            );
-            return Some(image_view);
-        }
-        _ => return None,
-    }
-}
-
 /// This function verifies if the drag&drop comes from left to right, form top to bottom or viceversa, then i calculates
 /// the top left corner and verifies if the dimensions of the area are compatibles with the current screen.
 pub fn calculate_area(
@@ -148,7 +105,7 @@ pub fn calculate_area(
 /// This function recieve a delay expressed in u64 and,
 /// the current screen then it calls `take_screenshot`.
 pub fn take_screenshot_with_delay(time: f64, current_screen: usize) -> Option<ImageBuf> {
-    let sleep_time = Duration::new(time as u64, 0.0 as u32);
+    let sleep_time = Duration::new((time - 0.5) as u64, 0.0 as u32);
 
     thread::sleep(sleep_time);
 
@@ -162,6 +119,6 @@ pub fn number_of_screens() -> usize {
 /// Return the size of main screen
 pub fn screen_size() -> Size {
     let screen = Screen::all().unwrap()[0].display_info;
-    
-    return Size::new(screen.width as f64, screen.height  as f64);
+
+    return Size::new(screen.width as f64, screen.height as f64);
 }

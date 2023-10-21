@@ -50,12 +50,6 @@ pub mod canvas_widget {
         ) {
             match event {
                 Event::MouseDown(mouse_event) => match data.canvas.get_shape() {
-                    Shape::Free => {
-                        data.canvas.set_init_draw(true);
-                    }
-                    Shape::Rubber => {
-                        data.canvas.set_init_draw(true);
-                    }
                     Shape::None => {}
                     _ => {
                         self.start_point = (
@@ -66,11 +60,9 @@ pub mod canvas_widget {
                 },
                 Event::MouseUp(mouse_event) => match data.canvas.get_shape() {
                     Shape::Free => {
-                        data.canvas.set_init_draw(false);
                         data.canvas.buf_point.clear();
                     }
                     Shape::Rubber => {
-                        data.canvas.set_init_draw(false);
                         data.canvas.buf_point.clear();
                     }
                     Shape::Cut => {
@@ -79,7 +71,7 @@ pub mod canvas_widget {
                             mouse_event.pos.y.ceil() as usize,
                         );
 
-                        if self.start_point == self.end_point{
+                        if self.start_point == self.end_point {
                             return;
                         }
 
@@ -133,10 +125,23 @@ pub mod canvas_widget {
                             data.get_thickness() as usize,
                         );
 
-                        data.set_buf(buf);
+                        data.set_buf_view(buf);
                     }
                 },
                 Event::MouseMove(mouse_event) => {
+                    if !mouse_event.buttons.has_left() {
+                        data.canvas.buf_point.clear();
+                        return;
+                    } else if mouse_event.pos.x < 0.1 || mouse_event.pos.y < 0.1 {
+                        data.canvas.buf_point.clear();
+                        return;
+                    } else if mouse_event.pos.x > self.widget_size.width
+                        || mouse_event.pos.y > self.widget_size.height
+                    {
+                        data.canvas.buf_point.clear();
+                        return;
+                    }
+
                     let shape = data.canvas.get_shape();
                     let image_size = self.image_data.size();
 
@@ -149,9 +154,7 @@ pub mod canvas_widget {
                             + (data.get_thickness() / 2.0) as usize,
                     );
 
-                    if (shape == Shape::Free || shape == Shape::Rubber)
-                        && data.canvas.get_init_draw() == true
-                    {
+                    if shape == Shape::Free || shape == Shape::Rubber {
                         if data.canvas.buf_point.len() <= 1 {
                             data.canvas.buf_point.push_back(current_point);
                         }
@@ -177,7 +180,7 @@ pub mod canvas_widget {
                                         data.get_thickness() as usize,
                                     );
 
-                                    data.set_buf(new_buf);
+                                    data.set_buf_view(new_buf);
                                 }
                                 Shape::Rubber => {
                                     match data.canvas.clear_pixel(
@@ -196,7 +199,7 @@ pub mod canvas_widget {
                                                 h,
                                             );
 
-                                            data.set_buf(new_buf);
+                                            data.set_buf_view(new_buf);
                                         }
                                         _ => {}
                                     }

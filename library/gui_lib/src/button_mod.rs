@@ -2,7 +2,7 @@ pub mod druid_mod {
     use druid::debug_state::DebugState;
     use druid::widget::{prelude::*, SizedBox};
     use druid::widget::{Click, ControllerHost, Flex, Image, Label, LabelText, ZStack};
-    use druid::{theme, Affine, Insets, LinearGradient, UnitPoint, Selector};
+    use druid::{theme, Affine, Insets, LinearGradient, Selector, UnitPoint};
     use druid::{Color, WidgetExt};
     use event_lib::canvas::canvas::Shape;
     use event_lib::AppState;
@@ -219,7 +219,21 @@ pub mod druid_mod {
             Shape::Rubber => button_shape == data.canvas.get_shape(),
             Shape::Cut => button_shape == data.canvas.get_shape(),
             Shape::Fill => data.canvas.get_fill(),
-            Shape::Color(val) => val == data.canvas.get_color(), 
+            Shape::Color(val) => {
+                let shape = data.canvas.get_shape();
+
+                if shape == Shape::Rubber {
+                    false
+                } else if shape == Shape::Cut {
+                    false
+                } else if shape == Shape::None {
+                    false
+                } else if val == data.canvas.get_color() {
+                    true
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }

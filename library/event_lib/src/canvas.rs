@@ -1,8 +1,8 @@
 pub mod canvas {
-    use druid::{im::HashMap, piet::ImageFormat, ImageBuf};
+    use druid::{im::HashMap, piet::ImageFormat, ImageBuf, Data};
     use std::collections::{HashSet, VecDeque};
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
     pub enum Shape {
         Line,
         Cirle,
@@ -15,15 +15,19 @@ pub mod canvas {
         Color(u32),
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Data)]
     pub struct Canvas {
         shape: Shape,
+        #[data(ignore)]
         color: u32,
-        init_draw: bool,
-        pub modified_pixel: HashMap<(usize, usize), u32>,
-        pub buf_point: VecDeque<(usize, usize)>,
-        pub start_point_cut: (usize, usize),
+        #[data(ignore)]
         fill: bool,
+        #[data(ignore)]
+        pub modified_pixel: HashMap<(usize, usize), u32>,
+        #[data(ignore)]
+        pub buf_point: VecDeque<(usize, usize)>,
+        #[data(ignore)]
+        pub start_point_cut: (usize, usize),
     }
 
     impl Canvas {
@@ -31,17 +35,15 @@ pub mod canvas {
             return Canvas {
                 shape: Shape::None,
                 color: 0xff0000ff,
-                init_draw: false,
+                fill: false,
                 modified_pixel: HashMap::new(),
                 buf_point: VecDeque::new(),
                 start_point_cut: (0, 0),
-                fill: false,
             };
         }
 
         pub fn set_shape(&mut self, new_shape: Shape) {
             self.shape = new_shape;
-            self.init_draw = false;
             self.buf_point.clear();
         }
 
@@ -55,14 +57,6 @@ pub mod canvas {
 
         pub fn get_color(&self) -> u32 {
             return self.color;
-        }
-
-        pub fn set_init_draw(&mut self, new_value: bool) {
-            self.init_draw = new_value;
-        }
-
-        pub fn get_init_draw(&self) -> bool {
-            return self.init_draw;
         }
 
         pub fn set_fill(&mut self, val: bool) {
@@ -143,7 +137,7 @@ pub mod canvas {
             let cleared_pixels = generate_line_coordinates(
                 (start.0 as f32, start.1 as f32),
                 (end.0 as f32, end.1 as f32),
-                thickness + 12,
+                thickness + 24,
             );
             let mut modified = false;
 
